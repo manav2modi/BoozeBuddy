@@ -1,9 +1,9 @@
-#Tue May 06 23:44:58 EDT 2025
-base.0=/Users/manavmodi/StudioProjects/drinkUp/build/app/intermediates/dex/debug/mergeExtDexDebug/classes.dex
-base.1=/Users/manavmodi/StudioProjects/drinkUp/build/app/intermediates/dex/debug/mergeLibDexDebug/0/classes.dex
-base.2=/Users/manavmodi/StudioProjects/drinkUp/build/app/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex
-base.3=/Users/manavmodi/StudioProjects/drinkUp/build/app/intermediates/dex/debug/mergeProjectDexDebug/1/classes.dex
-base.4=/Users/manavmodi/StudioProjects/drinkUp/build/app/intermediates/dex/debug/mergeProjectDexDebug/7/classes.dex
+#Wed May 07 00:21:12 EDT 2025
+base.0=/Users/manavmodi/StudioProjects/Sip-Tracker/build/app/intermediates/dex/debug/mergeExtDexDebug/classes.dex
+base.1=/Users/manavmodi/StudioProjects/Sip-Tracker/build/app/intermediates/dex/debug/mergeLibDexDebug/0/classes.dex
+base.2=/Users/manavmodi/StudioProjects/Sip-Tracker/build/app/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex
+base.3=/Users/manavmodi/StudioProjects/Sip-Tracker/build/app/intermediates/dex/debug/mergeProjectDexDebug/1/classes.dex
+base.4=/Users/manavmodi/StudioProjects/Sip-Tracker/build/app/intermediates/dex/debug/mergeProjectDexDebug/7/classes.dex
 path.0=classes.dex
 path.1=0/classes.dex
 path.2=0/classes.dex

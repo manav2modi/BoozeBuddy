@@ -1,5 +1,6 @@
-name: drinkup
-description: "A new Flutter project."
+name: sip_track
+description: A fun alcohol tracking app.
+
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 version: 1.0.0+1
@@ -10,17 +11,29 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.2
-  shared_preferences: ^2.0.15
-  uuid: ^3.0.6
-  intl: ^0.17.0
+  cupertino_icons: ^1.0.5
+  shared_preferences: ^2.1.1
+  uuid: ^3.0.7
+  intl: ^0.18.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-  flutter_lints: ^5.0.0
+  flutter_lints: ^2.0.1
 
 flutter:
-
   uses-material-design: true
+
+  # assets:
+  #   - assets/images/
+
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700

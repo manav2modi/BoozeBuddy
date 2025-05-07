@@ -25,7 +25,7 @@ class EmojiButton extends StatelessWidget {
               ? CupertinoColors.activeGreen
               : CupertinoColors.systemGrey5,
         ),
-        child: Text(type.emoji, style: TextStyle(fontSize: 24)),
+        child: Text("", style: TextStyle(fontSize: 24)),
       ),
     );
   }

@@ -1,11 +1,32 @@
 // lib/models/drink.dart
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
-enum DrinkType { beer, wine, cocktail, shot }
+enum DrinkType {
+  beer,
+  wine,
+  cocktail,
+  shot,
+  other
+}
 
-extension DrinkTypeEmoji on DrinkType {
-  String get emoji {
-    switch (this) {
+class Drink {
+  final String id;
+  final DrinkType type;
+  final double standardDrinks; // Alcohol content in standard drinks
+  final DateTime timestamp;
+  final String? note;
+
+  Drink({
+    required this.id,
+    required this.type,
+    required this.standardDrinks,
+    required this.timestamp,
+    this.note,
+  });
+
+  // Helper method to get emoji for drink type
+  static String getEmojiForType(DrinkType type) {
+    switch (type) {
       case DrinkType.beer:
         return '🍺';
       case DrinkType.wine:
@@ -14,34 +35,45 @@ extension DrinkTypeEmoji on DrinkType {
         return '🍹';
       case DrinkType.shot:
         return '🥃';
+      case DrinkType.other:
+        return '🍸';
     }
   }
-}
 
-class Drink {
-  final String id;
-  final DrinkType type;
-  final DateTime dateTime;
-  final double? cost;
+  // Helper method to get color for drink type
+  static Color getColorForType(DrinkType type) {
+    switch (type) {
+      case DrinkType.beer:
+        return Colors.amber;
+      case DrinkType.wine:
+        return Colors.redAccent;
+      case DrinkType.cocktail:
+        return Colors.pinkAccent;
+      case DrinkType.shot:
+        return Colors.deepOrangeAccent;
+      case DrinkType.other:
+        return Colors.purpleAccent;
+    }
+  }
 
-  Drink({
-    required this.id,
-    required this.type,
-    required this.dateTime,
-    this.cost,
-  });
+  // Convert to and from JSON for storage
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'type': type.index,
+      'standardDrinks': standardDrinks,
+      'timestamp': timestamp.toIso8601String(),
+      'note': note,
+    };
+  }
 
-  Map<String, dynamic> toMap() => {
-    'id': id,
-    'type': describeEnum(type),
-    'dateTime': dateTime.toIso8601String(),
-    'cost': cost,
-  };
-
-  factory Drink.fromMap(Map<String, dynamic> map) => Drink(
-    id: map['id'],
-    type: DrinkType.values.firstWhere((e) => describeEnum(e) == map['type']),
-    dateTime: DateTime.parse(map['dateTime']),
-    cost: map['cost'] != null ? (map['cost'] as num).toDouble() : null,
-  );
+  factory Drink.fromJson(Map<String, dynamic> json) {
+    return Drink(
+      id: json['id'],
+      type: DrinkType.values[json['type']],
+      standardDrinks: json['standardDrinks'],
+      timestamp: DateTime.parse(json['timestamp']),
+      note: json['note'],
+    );
+  }
 }
