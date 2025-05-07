@@ -18,8 +18,8 @@ void main() {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-      statusBarBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
     ),
   );
 
@@ -33,7 +33,9 @@ class SipTrackApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SipTrack 🍻',
-      theme: AppTheme.iosTheme,
+      theme: AppTheme.darkTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.dark,
       debugShowCheckedModeBanner: false,
       home: const HomeScreen(),
     );

@@ -23,13 +23,17 @@ class DrinkCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: CupertinoColors.systemBackground,
+        color: const Color(0xFF222222),
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFF333333),
+          width: 1,
+        ),
       ),
       child: GestureDetector(
         onLongPress: onDelete,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.all(12),
           child: Row(
             children: [
               // Left part with emoji and drink type
@@ -37,8 +41,12 @@ class DrinkCard extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: color.withOpacity(0.3),
+                    width: 1,
+                  ),
                 ),
                 child: Center(
                   child: Text(
@@ -59,6 +67,7 @@ class DrinkCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
+                        color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -66,7 +75,7 @@ class DrinkCard extends StatelessWidget {
                       timeString,
                       style: const TextStyle(
                         fontSize: 14,
-                        color: CupertinoColors.systemGrey,
+                        color: Color(0xFF888888),
                       ),
                     ),
                     if (drink.note != null && drink.note!.isNotEmpty) ...[
@@ -75,7 +84,7 @@ class DrinkCard extends StatelessWidget {
                         drink.note!,
                         style: const TextStyle(
                           fontSize: 14,
-                          color: CupertinoColors.systemGrey,
+                          color: Color(0xFF888888),
                           fontStyle: FontStyle.italic,
                         ),
                         maxLines: 2,
@@ -93,8 +102,12 @@ class DrinkCard extends StatelessWidget {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: color.withOpacity(0.3),
+                    width: 1,
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -120,7 +133,7 @@ class DrinkCard extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 child: const Icon(
                   CupertinoIcons.delete,
-                  color: CupertinoColors.systemGrey,
+                  color: Color(0xFF888888),
                   size: 20,
                 ),
                 onPressed: onDelete,

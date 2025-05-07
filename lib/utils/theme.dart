@@ -3,31 +3,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
 class AppTheme {
-  // iOS-style colors
-  static const Color primaryColor = Color(0xFF007AFF);
-  static const Color secondaryColor = Color(0xFFFF9500);
-  static const Color backgroundColor = Color(0xFFF2F2F7);
-  static const Color surfaceColor = Colors.white;
-  static const Color accentColor = Color(0xFF5AC8FA);
+  // Dark mode colors
+  static const Color primaryColor = Color(0xFF007AFF);      // iOS blue
+  static const Color secondaryColor = Color(0xFFFF9500);    // iOS orange
+  static const Color backgroundColor = Color(0xFF121212);   // Dark background
+  static const Color surfaceColor = Color(0xFF1E1E1E);      // Dark surface
+  static const Color accentColor = Color(0xFF5AC8FA);       // iOS light blue
 
   // Text colors
-  static const Color textPrimaryColor = Color(0xFF000000);
-  static const Color textSecondaryColor = Color(0xFF8E8E93);
+  static const Color textPrimaryColor = Colors.white;
+  static const Color textSecondaryColor = Color(0xFFAAAAAA);
 
   // Card colors
-  static const Color cardColor = Colors.white;
-  static const Color dividerColor = Color(0xFFE5E5EA);
+  static const Color cardColor = Color(0xFF2C2C2C);
+  static const Color dividerColor = Color(0xFF3D3D3D);
 
   // Button colors
   static const Color buttonColor = primaryColor;
 
-  // Create the iOS-like theme
-  static ThemeData get iosTheme {
-    return ThemeData(
+  // iOS-like dark theme
+  static ThemeData get darkTheme {
+    return ThemeData.dark().copyWith(
       primaryColor: primaryColor,
       scaffoldBackgroundColor: backgroundColor,
       cardColor: cardColor,
-      brightness: Brightness.light,
       dividerColor: dividerColor,
       appBarTheme: const AppBarTheme(
         backgroundColor: surfaceColor,
@@ -112,12 +111,12 @@ class AppTheme {
         ),
         shadowColor: Colors.black.withOpacity(0.1),
       ),
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.dark(
         primary: primaryColor,
         secondary: secondaryColor,
         surface: surfaceColor,
         background: backgroundColor,
-        error: const Color(0xFFFF3B30),
+        error: Color(0xFFFF3B30),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: surfaceColor,
@@ -156,7 +155,7 @@ class AppTheme {
       ),
       cupertinoOverrideTheme: const CupertinoThemeData(
         primaryColor: primaryColor,
-        brightness: Brightness.light,
+        brightness: Brightness.dark,
         textTheme: CupertinoTextThemeData(
           primaryColor: primaryColor,
         ),

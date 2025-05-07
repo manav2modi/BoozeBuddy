@@ -28,36 +28,38 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
   late DateTime _selectedDate;
   bool _isSaving = false;
 
+  // Colors for dark theme
+  static const Color _backgroundColor = Color(0xFF121212);
+  static const Color _cardColor = Color(0xFF222222);
+  static const Color _cardBorderColor = Color(0xFF333333);
+  static const Color _textFieldColor = Color(0xFF2A2A2A);
+  static const Color _textSecondaryColor = Color(0xFF888888);
+
   final Map<DrinkType, Map<String, dynamic>> _drinkTypesInfo = {
     DrinkType.beer: {
       'name': 'Beer',
       'emoji': '🍺',
       'defaultStandardDrinks': 1.0,
-      'color': CupertinoColors.systemYellow,
     },
     DrinkType.wine: {
       'name': 'Wine',
       'emoji': '🍷',
       'defaultStandardDrinks': 1.5,
-      'color': CupertinoColors.systemRed,
     },
     DrinkType.cocktail: {
       'name': 'Cocktail',
       'emoji': '🍹',
       'defaultStandardDrinks': 2.0,
-      'color': CupertinoColors.systemPink,
     },
     DrinkType.shot: {
       'name': 'Shot',
       'emoji': '🥃',
       'defaultStandardDrinks': 1.0,
-      'color': CupertinoColors.systemOrange,
     },
     DrinkType.other: {
       'name': 'Other',
       'emoji': '🍸',
       'defaultStandardDrinks': 1.0,
-      'color': CupertinoColors.systemPurple,
     },
   };
 
@@ -82,12 +84,12 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
       builder: (BuildContext context) {
         return Container(
           height: 300,
-          color: CupertinoColors.systemBackground,
+          color: const Color(0xFF2C2C2C),
           child: Column(
             children: [
               Container(
                 height: 44,
-                color: CupertinoColors.systemBackground,
+                color: const Color(0xFF2C2C2C),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -106,18 +108,24 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                   ],
                 ),
               ),
-              const Divider(height: 0),
+              const Divider(height: 0, color: Color(0xFF3D3D3D)),
               Expanded(
-                child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.date,
-                  initialDateTime: _selectedDate,
-                  maximumDate: DateTime.now(),
-                  minimumDate: DateTime.now().subtract(const Duration(days: 30)),
-                  onDateTimeChanged: (DateTime newDate) {
-                    setState(() {
-                      _selectedDate = newDate;
-                    });
-                  },
+                child: CupertinoTheme(
+                  data: const CupertinoThemeData(
+                    brightness: Brightness.dark,
+                    primaryColor: Color(0xFF007AFF),
+                  ),
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.date,
+                    initialDateTime: _selectedDate,
+                    maximumDate: DateTime.now(),
+                    minimumDate: DateTime.now().subtract(const Duration(days: 30)),
+                    onDateTimeChanged: (DateTime newDate) {
+                      setState(() {
+                        _selectedDate = newDate;
+                      });
+                    },
+                  ),
                 ),
               ),
             ],
@@ -189,10 +197,18 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final Color selectedColor = _drinkTypesInfo[_selectedType]!['color'];
+    final Color selectedColor = Drink.getColorForType(_selectedType);
 
     return CupertinoPageScaffold(
+      backgroundColor: _backgroundColor,
       navigationBar: CupertinoNavigationBar(
+        backgroundColor: _cardColor,
+        border: const Border(
+          bottom: BorderSide(
+            color: _cardBorderColor,
+            width: 0.5,
+          ),
+        ),
         middle: Text(
           'Add ${_drinkTypesInfo[_selectedType]!['name']} ${_drinkTypesInfo[_selectedType]!['emoji']}',
         ),
@@ -208,10 +224,10 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
               Container(
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: CupertinoColors.systemBackground,
+                  color: _cardColor,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: CupertinoColors.systemGrey5,
+                    color: _cardBorderColor,
                     width: 1,
                   ),
                 ),
@@ -225,6 +241,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -234,6 +251,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                           children: _drinkTypesInfo.entries.map((entry) {
                             final type = entry.key;
                             final info = entry.value;
+                            final color = Drink.getColorForType(type);
 
                             final bool isSelected = _selectedType == type;
 
@@ -245,13 +263,13 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
                                     color: isSelected
-                                        ? info['color'].withOpacity(0.2)
-                                        : CupertinoColors.systemGrey6,
+                                        ? color.withOpacity(0.15)
+                                        : const Color(0xFF333333),
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                       color: isSelected
-                                          ? info['color']
-                                          : CupertinoColors.systemGrey5,
+                                          ? color
+                                          : const Color(0xFF444444),
                                       width: 1,
                                     ),
                                   ),
@@ -270,8 +288,8 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                                               ? FontWeight.bold
                                               : FontWeight.normal,
                                           color: isSelected
-                                              ? info['color']
-                                              : CupertinoColors.label,
+                                              ? color
+                                              : Colors.white,
                                         ),
                                       ),
                                     ],
@@ -291,10 +309,10 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
               Container(
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: CupertinoColors.systemBackground,
+                  color: _cardColor,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: CupertinoColors.systemGrey5,
+                    color: _cardBorderColor,
                     width: 1,
                   ),
                 ),
@@ -308,6 +326,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -315,7 +334,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                         'How many standard drinks?',
                         style: TextStyle(
                           fontSize: 14,
-                          color: CupertinoColors.systemGrey,
+                          color: _textSecondaryColor,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -325,7 +344,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                             '0.5',
                             style: TextStyle(
                               fontSize: 14,
-                              color: CupertinoColors.systemGrey,
+                              color: _textSecondaryColor,
                             ),
                           ),
                           Expanded(
@@ -346,7 +365,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                             '5.0',
                             style: TextStyle(
                               fontSize: 14,
-                              color: CupertinoColors.systemGrey,
+                              color: _textSecondaryColor,
                             ),
                           ),
                         ],
@@ -358,8 +377,12 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                               vertical: 8
                           ),
                           decoration: BoxDecoration(
-                            color: selectedColor.withOpacity(0.1),
+                            color: selectedColor.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: selectedColor.withOpacity(0.3),
+                              width: 1,
+                            ),
                           ),
                           child: Text(
                             _standardDrinks.toStringAsFixed(1),
@@ -380,10 +403,10 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
               Container(
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: CupertinoColors.systemBackground,
+                  color: _cardColor,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: CupertinoColors.systemGrey5,
+                    color: _cardBorderColor,
                     width: 1,
                   ),
                 ),
@@ -406,13 +429,14 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w600,
+                                color: Colors.white,
                               ),
                             ),
                             Text(
                               DateFormat('MMMM d, yyyy').format(_selectedDate),
                               style: const TextStyle(
                                 fontSize: 14,
-                                color: CupertinoColors.systemGrey,
+                                color: _textSecondaryColor,
                               ),
                             ),
                           ],
@@ -420,7 +444,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                         const Spacer(),
                         const Icon(
                           CupertinoIcons.chevron_right,
-                          color: CupertinoColors.systemGrey2,
+                          color: _textSecondaryColor,
                           size: 20,
                         ),
                       ],
@@ -433,10 +457,10 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
               Container(
                 margin: const EdgeInsets.only(bottom: 24),
                 decoration: BoxDecoration(
-                  color: CupertinoColors.systemBackground,
+                  color: _cardColor,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: CupertinoColors.systemGrey5,
+                    color: _cardBorderColor,
                     width: 1,
                   ),
                 ),
@@ -450,6 +474,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -457,18 +482,31 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                         'Optional: Add details about your drink',
                         style: TextStyle(
                           fontSize: 14,
-                          color: CupertinoColors.systemGrey,
+                          color: _textSecondaryColor,
                         ),
                       ),
                       const SizedBox(height: 16),
                       CupertinoTextField(
                         controller: _noteController,
                         placeholder: 'e.g. Special occasion, brand, with friends...',
+                        placeholderStyle: const TextStyle(
+                          color: Color(0xFF666666),
+                        ),
+                        style: const TextStyle(
+                          color: Colors.white,
+                        ),
                         maxLines: 3,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        cursorColor: selectedColor,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: CupertinoColors.systemGrey6,
+                          color: _textFieldColor,
                           borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFF444444),
+                            width: 1,
+                          ),
                         ),
                       ),
                     ],
@@ -479,10 +517,13 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
               // Save Button
               SizedBox(
                 width: double.infinity,
-                child: CupertinoButton.filled(
+                child: CupertinoButton(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  color: selectedColor,
+                  borderRadius: BorderRadius.circular(10),
                   onPressed: _isSaving ? null : _saveDrink,
                   child: _isSaving
-                      ? const CupertinoActivityIndicator(color: CupertinoColors.white)
+                      ? const CupertinoActivityIndicator(color: Colors.white)
                       : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -496,6 +537,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
                     ],

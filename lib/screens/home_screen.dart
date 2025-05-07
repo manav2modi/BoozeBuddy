@@ -4,8 +4,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import '../models/drink.dart';
 import '../services/storage_service.dart';
-import './add_drink_screen.dart'; // Make sure this path is correct
-import './stats_screen.dart'; // Make sure this path is correct
+import './add_drink_screen.dart';
+import './stats_screen.dart';
 import '../widgets/drink_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,6 +22,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   List<Drink> _drinks = [];
   bool _isLoading = true;
   int _currentTabIndex = 0;
+
+  // Colors for dark theme
+  static const Color _backgroundColor = Color(0xFF121212);
+  static const Color _cardColor = Color(0xFF222222);
+  static const Color _accentColor = Color(0xFF007AFF); // iOS blue
+  static const Color _cardBorderColor = Color(0xFF333333);
+  static const Color _textSecondaryColor = Color(0xFF888888);
 
   @override
   void initState() {
@@ -75,12 +82,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         builder: (BuildContext context) {
           return Container(
             height: 300,
-            color: CupertinoColors.systemBackground,
+            color: const Color(0xFF2C2C2C),
             child: Column(
               children: [
                 Container(
                   height: 44,
-                  color: CupertinoColors.systemBackground,
+                  color: const Color(0xFF2C2C2C),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -100,18 +107,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ),
                 ),
-                const Divider(height: 0),
+                const Divider(height: 0, color: Color(0xFF3D3D3D)),
                 Expanded(
-                  child: CupertinoDatePicker(
-                    mode: CupertinoDatePickerMode.date,
-                    initialDateTime: _selectedDate,
-                    maximumDate: DateTime.now(),
-                    minimumDate: DateTime.now().subtract(const Duration(days: 365)),
-                    onDateTimeChanged: (DateTime newDate) {
-                      setState(() {
-                        _selectedDate = newDate;
-                      });
-                    },
+                  child: CupertinoTheme(
+                    data: const CupertinoThemeData(
+                      brightness: Brightness.dark,
+                      primaryColor: _accentColor,
+                    ),
+                    child: CupertinoDatePicker(
+                      mode: CupertinoDatePickerMode.date,
+                      initialDateTime: _selectedDate,
+                      maximumDate: DateTime.now(),
+                      minimumDate: DateTime.now().subtract(const Duration(days: 365)),
+                      onDateTimeChanged: (DateTime newDate) {
+                        setState(() {
+                          _selectedDate = newDate;
+                        });
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -146,6 +159,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _backgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -153,10 +167,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: CupertinoColors.systemBackground,
+                color: _cardColor,
                 border: Border(
                   bottom: BorderSide(
-                    color: CupertinoColors.systemGrey5,
+                    color: _cardBorderColor,
                     width: 0.5,
                   ),
                 ),
@@ -168,6 +182,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
                   const Spacer(),
@@ -175,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     padding: EdgeInsets.zero,
                     child: Text(
                       DateFormat('MMM d').format(_selectedDate),
-                      style: const TextStyle(color: CupertinoColors.activeBlue),
+                      style: const TextStyle(color: _accentColor),
                     ),
                     onPressed: () => _selectDate(context),
                   ),
@@ -187,10 +202,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: CupertinoColors.systemBackground,
+                color: _cardColor,
                 border: Border(
                   bottom: BorderSide(
-                    color: CupertinoColors.systemGrey5,
+                    color: _cardBorderColor,
                     width: 0.5,
                   ),
                 ),
@@ -202,14 +217,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
+                      color: Colors.white,
                     ),
                   ),
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: CupertinoColors.activeBlue.withOpacity(0.1),
+                      color: _accentColor.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _accentColor.withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -220,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: CupertinoColors.activeBlue,
+                            color: _accentColor,
                           ),
                         ),
                       ],
@@ -233,24 +253,38 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             // Tab bar
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              child: CupertinoSegmentedControl<int>(
+              child: CupertinoSlidingSegmentedControl<int>(
+                backgroundColor: const Color(0xFF333333),
+                thumbColor: const Color(0xFF444444),
+                groupValue: _currentTabIndex,
                 children: const {
                   0: Padding(
                     padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: Text('Drinks'),
+                    child: Text(
+                      'Drinks',
+                      style: TextStyle(
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                   1: Padding(
                     padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: Text('Stats'),
+                    child: Text(
+                      'Stats',
+                      style: TextStyle(
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 },
-                onValueChanged: (int newValue) {
-                  setState(() {
-                    _currentTabIndex = newValue;
-                    _tabController.animateTo(newValue);
-                  });
+                onValueChanged: (int? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _currentTabIndex = newValue;
+                      _tabController.animateTo(newValue);
+                    });
+                  }
                 },
-                groupValue: _currentTabIndex,
               ),
             ),
 
@@ -268,15 +302,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(
-                          CupertinoIcons.creditcard_fill,  // Changed icon to one that exists in CupertinoIcons
+                          CupertinoIcons.tray,
                           size: 72,
-                          color: CupertinoColors.systemGrey3,
+                          color: Color(0xFF555555),
                         ),
                         const SizedBox(height: 16),
                         Text(
                           "No drinks logged for ${DateFormat('MMM d').format(_selectedDate)}",
                           style: const TextStyle(
-                            color: CupertinoColors.systemGrey,
+                            color: Color(0xFF888888),
                             fontSize: 16,
                           ),
                         ),
@@ -291,7 +325,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       : ListView.separated(
                     padding: const EdgeInsets.all(16),
                     itemCount: _drinks.length,
-                    separatorBuilder: (context, index) => const Divider(),
+                    separatorBuilder: (context, index) => const Divider(color: _cardBorderColor),
                     itemBuilder: (context, index) {
                       final drink = _drinks[index];
                       return DrinkCard(
@@ -317,7 +351,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
       floatingActionButton: _currentTabIndex == 0
           ? FloatingActionButton(
-        backgroundColor: CupertinoColors.activeBlue,
+        backgroundColor: _accentColor,
         child: const Icon(CupertinoIcons.add),
         onPressed: _navigateToAddDrink,
       )

@@ -40,19 +40,19 @@ class Drink {
     }
   }
 
-  // Helper method to get color for drink type
+  // Helper method to get color for drink type - optimized for dark mode
   static Color getColorForType(DrinkType type) {
     switch (type) {
       case DrinkType.beer:
-        return CupertinoColors.systemYellow;
+        return const Color(0xFFFFC107); // Brighter amber for dark theme
       case DrinkType.wine:
-        return CupertinoColors.systemRed;
+        return const Color(0xFFFF5252); // Brighter red for dark theme
       case DrinkType.cocktail:
-        return CupertinoColors.systemPink;
+        return const Color(0xFFFF4081); // Brighter pink for dark theme
       case DrinkType.shot:
-        return CupertinoColors.systemOrange;
+        return const Color(0xFFFF9800); // Brighter orange for dark theme
       case DrinkType.other:
-        return CupertinoColors.systemPurple;
+        return const Color(0xFFB388FF); // Brighter purple for dark theme
     }
   }
 
