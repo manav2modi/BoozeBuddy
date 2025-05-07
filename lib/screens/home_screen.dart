@@ -4,8 +4,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import '../models/drink.dart';
 import '../services/storage_service.dart';
+import '../services/settings_service.dart';
 import './add_drink_screen.dart';
 import './stats_screen.dart';
+import './settings_screen.dart';
 import '../widgets/drink_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,11 +19,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final StorageService _storageService = StorageService();
+  final SettingsService _settingsService = SettingsService();
   late TabController _tabController;
   DateTime _selectedDate = DateTime.now();
   List<Drink> _drinks = [];
   bool _isLoading = true;
   int _currentTabIndex = 0;
+  bool _costTrackingEnabled = false;
 
   // Colors for dark theme
   static const Color _backgroundColor = Color(0xFF121212);
@@ -41,7 +45,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         });
       }
     });
+    _loadSettings();
     _loadDrinks();
+  }
+
+  Future<void> _loadSettings() async {
+    final costTrackingEnabled = await _settingsService.getCostTrackingEnabled();
+    setState(() {
+      _costTrackingEnabled = costTrackingEnabled;
+    });
   }
 
   @override
@@ -73,6 +85,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   double get _totalStandardDrinks {
     return _drinks.fold(0, (sum, drink) => sum + drink.standardDrinks);
+  }
+
+  // Calculate total cost for today's drinks
+  double get _totalCost {
+    if (!_costTrackingEnabled) return 0;
+    return _drinks.fold(0, (sum, drink) => sum + (drink.cost ?? 0));
   }
 
   void _selectDate(BuildContext context) async {
@@ -156,6 +174,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     ) ?? false;
   }
 
+  // Navigate to settings screen
+  Future<void> _navigateToSettings() async {
+    await Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (context) => const SettingsScreen(),
+      ),
+    );
+
+    // Reload settings and drinks when returning from settings
+    _loadSettings();
+    _loadDrinks();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -166,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             // App bar
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: _cardColor,
                 border: Border(
                   bottom: BorderSide(
@@ -185,6 +216,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       color: Colors.white,
                     ),
                   ),
+                  // Image.asset(
+                  //   'assets/images/logo.png',
+                  //   height: 40,            // adjust to fit your AppBar
+                  //   fit: BoxFit.contain,
+                  // ),
                   const Spacer(),
                   CupertinoButton(
                     padding: EdgeInsets.zero,
@@ -193,6 +229,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       style: const TextStyle(color: _accentColor),
                     ),
                     onPressed: () => _selectDate(context),
+                  ),
+                  const SizedBox(width: 8),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    child: const Icon(
+                      CupertinoIcons.settings,
+                      color: _accentColor,
+                      size: 24,
+                    ),
+                    onPressed: _navigateToSettings,
                   ),
                 ],
               ),
@@ -212,13 +258,40 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
               child: Row(
                 children: [
-                  const Text(
-                    'Today\'s Total:',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Today\'s Total:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                      if (_costTrackingEnabled && _totalCost > 0) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Text(
+                              'Cost: ',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: _textSecondaryColor,
+                              ),
+                            ),
+                            Text(
+                              _totalCost.toStringAsFixed(2),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: _accentColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
                   const Spacer(),
                   Container(

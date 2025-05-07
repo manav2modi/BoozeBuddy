@@ -15,6 +15,7 @@ class Drink {
   final double standardDrinks; // Alcohol content in standard drinks
   final DateTime timestamp;
   final String? note;
+  final double? cost; // Optional cost field
 
   Drink({
     required this.id,
@@ -22,6 +23,7 @@ class Drink {
     required this.standardDrinks,
     required this.timestamp,
     this.note,
+    this.cost, // Optional cost
   });
 
   // Helper method to get emoji for drink type
@@ -64,6 +66,7 @@ class Drink {
       'standardDrinks': standardDrinks,
       'timestamp': timestamp.toIso8601String(),
       'note': note,
+      'cost': cost, // Include cost in JSON
     };
   }
 
@@ -74,6 +77,7 @@ class Drink {
       standardDrinks: (json['standardDrinks'] as num).toDouble(),
       timestamp: DateTime.parse(json['timestamp'] as String),
       note: json['note'] as String?,
+      cost: json['cost'] != null ? (json['cost'] as num).toDouble() : null, // Parse cost if available
     );
   }
 }

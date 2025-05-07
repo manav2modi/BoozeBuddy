@@ -1,10 +1,12 @@
 // lib/screens/add_drink_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../models/drink.dart';
 import '../services/storage_service.dart';
+import '../services/settings_service.dart';
 
 class AddDrinkScreen extends StatefulWidget {
   final DateTime selectedDate;
@@ -21,12 +23,15 @@ class AddDrinkScreen extends StatefulWidget {
 
 class _AddDrinkScreenState extends State<AddDrinkScreen> {
   final StorageService _storageService = StorageService();
+  final SettingsService _settingsService = SettingsService();
   final _noteController = TextEditingController();
+  final _costController = TextEditingController();
 
   DrinkType _selectedType = DrinkType.beer;
   double _standardDrinks = 1.0;
   late DateTime _selectedDate;
   bool _isSaving = false;
+  bool _showCostField = false;
 
   // Colors for dark theme
   static const Color _backgroundColor = Color(0xFF121212);
@@ -70,11 +75,22 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
 
     // Set the default standard drinks based on the selected type
     _standardDrinks = _drinkTypesInfo[_selectedType]!['defaultStandardDrinks'];
+
+    // Load cost tracking setting
+    _loadCostTrackingSetting();
+  }
+
+  Future<void> _loadCostTrackingSetting() async {
+    final costTrackingEnabled = await _settingsService.getCostTrackingEnabled();
+    setState(() {
+      _showCostField = costTrackingEnabled;
+    });
   }
 
   @override
   void dispose() {
     _noteController.dispose();
+    _costController.dispose();
     super.dispose();
   }
 
@@ -143,19 +159,31 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
   }
 
   Future<void> _saveDrink() async {
-    // No need to validate since we're using CupertinoUI components
-    // which have built-in validation
     setState(() {
       _isSaving = true;
     });
 
     try {
+      // Parse cost if enabled and entered
+      double? cost;
+      if (_showCostField && _costController.text.isNotEmpty) {
+        cost = double.tryParse(_costController.text);
+        if (cost == null) {
+          _showInvalidCostError();
+          setState(() {
+            _isSaving = false;
+          });
+          return;
+        }
+      }
+
       final newDrink = Drink(
         id: const Uuid().v4(),
         type: _selectedType,
         standardDrinks: _standardDrinks,
         timestamp: _selectedDate,
         note: _noteController.text.isEmpty ? null : _noteController.text,
+        cost: cost,
       );
 
       final saved = await _storageService.saveDrink(newDrink);
@@ -185,6 +213,22 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Error'),
         content: const Text('Failed to save drink. Please try again.'),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('OK'),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInvalidCostError() {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Invalid Cost'),
+        content: const Text('Please enter a valid number for the cost.'),
         actions: [
           CupertinoDialogAction(
             child: const Text('OK'),
@@ -453,6 +497,81 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                 ),
               ),
 
+              // Cost (conditionally shown)
+              if (_showCostField)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: _cardColor,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _cardBorderColor,
+                      width: 1,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Cost 💲',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'How much did this drink cost?',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: _textSecondaryColor,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        CupertinoTextField(
+                          controller: _costController,
+                          prefix: const Padding(
+                            padding: EdgeInsets.only(left: 12),
+                            child: Text(
+                              '\$',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          placeholder: '0.00',
+                          placeholderStyle: const TextStyle(
+                            color: Color(0xFF666666),
+                          ),
+                          style: const TextStyle(
+                            color: Colors.white,
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                          ],
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _textFieldColor,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFF444444),
+                              width: 1,
+                            ),
+                          ),
+                          cursorColor: selectedColor,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
               // Note
               Container(
                 margin: const EdgeInsets.only(bottom: 24),
@@ -496,9 +615,6 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                           color: Colors.white,
                         ),
                         maxLines: 3,
-                        autocorrect: false,
-                        enableSuggestions: false,
-                        cursorColor: selectedColor,
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: _textFieldColor,
@@ -508,6 +624,9 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> {
                             width: 1,
                           ),
                         ),
+                        cursorColor: selectedColor,
+                        autocorrect: false,
+                        enableSuggestions: false,
                       ),
                     ],
                   ),

@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import '../models/drink.dart';
 import '../services/storage_service.dart';
+import '../services/settings_service.dart';
 
 enum TimeRange {
   week,
@@ -22,9 +23,12 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> {
   final StorageService _storageService = StorageService();
+  final SettingsService _settingsService = SettingsService();
   List<Drink> _drinks = [];
   bool _isLoading = true;
   TimeRange _selectedTimeRange = TimeRange.week;
+  bool _costTrackingEnabled = false;
+  String _currencySymbol = '\$';
 
   // Colors
   static const Color _cardColor = Color(0xFF222222);
@@ -36,7 +40,18 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   void initState() {
     super.initState();
+    _loadSettings();
     _loadDrinks();
+  }
+
+  Future<void> _loadSettings() async {
+    final costTrackingEnabled = await _settingsService.getCostTrackingEnabled();
+    final currencySymbol = await _settingsService.getCurrencySymbol();
+
+    setState(() {
+      _costTrackingEnabled = costTrackingEnabled;
+      _currencySymbol = currencySymbol;
+    });
   }
 
   Future<void> _loadDrinks() async {
@@ -188,6 +203,60 @@ class _StatsScreenState extends State<StatsScreen> {
     return result;
   }
 
+  // Get cost chart data (similar to _chartData but for costs)
+  Map<String, double> get _costChartData {
+    if (!_costTrackingEnabled) return {};
+
+    final Map<String, double> result = {};
+    final now = DateTime.now();
+    final filteredDrinks = _filteredDrinks;
+
+    // Initialize with same structure as _chartData
+    _chartData.keys.forEach((key) {
+      result[key] = 0;
+    });
+
+    // Sum costs for each period
+    for (final drink in filteredDrinks) {
+      // Skip drinks without cost data
+      if (drink.cost == null) continue;
+
+      String label;
+      switch (_selectedTimeRange) {
+        case TimeRange.week:
+          label = DateFormat('E').format(drink.timestamp);
+          break;
+        case TimeRange.month:
+          final weekDiff = now.difference(drink.timestamp).inDays ~/ 7;
+          if (weekDiff < 5) {
+            label = 'Week ${5 - weekDiff}';
+          } else {
+            continue; // Skip if outside range
+          }
+          break;
+        case TimeRange.threeMonths:
+          final weekDiff = now.difference(drink.timestamp).inDays ~/ 7;
+          if (weekDiff < 12) {
+            final weekStart = now.subtract(Duration(days: now.weekday + 7 * weekDiff - 1));
+            label = DateFormat('MM/dd').format(weekStart);
+          } else {
+            continue; // Skip if outside range
+          }
+          break;
+        case TimeRange.year:
+        case TimeRange.allTime:
+          label = DateFormat('MMM').format(drink.timestamp);
+          break;
+      }
+
+      if (result.containsKey(label)) {
+        result[label] = (result[label] ?? 0) + drink.cost!;
+      }
+    }
+
+    return result;
+  }
+
   // Get drink counts by type
   Map<DrinkType, int> get _drinkCountByType {
     final Map<DrinkType, int> result = {};
@@ -210,9 +279,31 @@ class _StatsScreenState extends State<StatsScreen> {
     return result;
   }
 
+  // Get costs by drink type
+  Map<DrinkType, double> get _costsByType {
+    if (!_costTrackingEnabled) return {};
+
+    final Map<DrinkType, double> result = {};
+
+    for (final drink in _filteredDrinks) {
+      if (drink.cost != null) {
+        result[drink.type] = (result[drink.type] ?? 0) + drink.cost!;
+      }
+    }
+
+    return result;
+  }
+
   // Get total drinks for the selected time range
   double get _totalStandardDrinks {
     return _filteredDrinks.fold(0, (sum, drink) => sum + drink.standardDrinks);
+  }
+
+  // Get total cost for the selected time range
+  double get _totalCost {
+    if (!_costTrackingEnabled) return 0;
+
+    return _filteredDrinks.fold(0, (sum, drink) => sum + (drink.cost ?? 0));
   }
 
   // Get drinks per day average
@@ -227,6 +318,17 @@ class _StatsScreenState extends State<StatsScreen> {
 
     // Return average drinks per active drinking day
     return _totalStandardDrinks / daysWithDrinks;
+  }
+
+  // Get average cost per drink
+  double get _averageCostPerDrink {
+    if (!_costTrackingEnabled) return 0;
+
+    final drinksWithCost = _filteredDrinks.where((drink) => drink.cost != null).toList();
+    if (drinksWithCost.isEmpty) return 0;
+
+    final totalCost = drinksWithCost.fold<double>(0.0, (double sum, drink) => sum + (drink.cost ?? 0));
+    return totalCost / drinksWithCost.length;
   }
 
   // Get the most drinks consumed in a single day
@@ -500,11 +602,48 @@ class _StatsScreenState extends State<StatsScreen> {
                           ),
                         ],
                       ),
+
+                      // Cost summary (conditional)
+                      if (_costTrackingEnabled) ...[
+                        const SizedBox(height: 16),
+                        const Divider(color: Color(0xFF333333)),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Cost Summary 💰',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            _StatTile(
+                              emoji: '💵',
+                              title: 'Total',
+                              value: '$_currencySymbol${_totalCost.toStringAsFixed(2)}',
+                            ),
+                            _StatTile(
+                              emoji: '🍹',
+                              title: 'Avg/Drink',
+                              value: '$_currencySymbol${_averageCostPerDrink.toStringAsFixed(2)}',
+                            ),
+                            _StatTile(
+                              emoji: '📊',
+                              title: 'Avg/Day',
+                              value: _totalDrinkingDays > 0
+                                  ? '$_currencySymbol${(_totalCost / _totalDrinkingDays).toStringAsFixed(2)}'
+                                  : '$_currencySymbol 0.00',
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
 
-                // Chart Card
+                // Consumption Chart Card
                 Container(
                   width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 16),
@@ -521,7 +660,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _getChartTitle(),
+                        _getChartTitle('Drinks'),
                         style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
@@ -531,11 +670,45 @@ class _StatsScreenState extends State<StatsScreen> {
                       const SizedBox(height: 24),
                       SizedBox(
                         height: 200,
-                        child: _buildChart(),
+                        child: _buildChart(_chartData),
                       ),
                     ],
                   ),
                 ),
+
+                // Cost Chart Card (conditional)
+                if (_costTrackingEnabled && _costChartData.isNotEmpty)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _cardColor,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _cardBorderColor,
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _getChartTitle('Spending'),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          height: 200,
+                          child: _buildChart(_costChartData, prefix: _currencySymbol),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // Drink Types Distribution
                 if (_standardDrinksByType.isNotEmpty)
@@ -572,6 +745,10 @@ class _StatsScreenState extends State<StatsScreen> {
                               _totalStandardDrinks *
                               100;
 
+                          // Get cost for this drink type if available
+                          final cost = _costsByType[type];
+                          final hasCost = _costTrackingEnabled && cost != null;
+
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Column(
@@ -596,6 +773,16 @@ class _StatsScreenState extends State<StatsScreen> {
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
+                                    if (hasCost) ...[
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '• $_currencySymbol${cost!.toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFF888888),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                                 const SizedBox(height: 6),
@@ -666,9 +853,7 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-  Widget _buildChart() {
-    final Map<String, double> chartData = _chartData;
-
+  Widget _buildChart(Map<String, double> chartData, {String prefix = ''}) {
     if (chartData.isEmpty) {
       return const Center(
         child: Text(
@@ -727,7 +912,7 @@ class _StatsScreenState extends State<StatsScreen> {
               children: [
                 // Value label
                 Text(
-                  value > 0 ? value.toStringAsFixed(1) : '',
+                  value > 0 ? '$prefix${value.toStringAsFixed(prefix.isNotEmpty ? 2 : 1)}' : '',
                   style: TextStyle(
                     fontSize: 9,
                     color: value > 0 ? _chartBarColor : Colors.transparent,
@@ -777,19 +962,28 @@ class _StatsScreenState extends State<StatsScreen> {
     return label;
   }
 
-  String _getChartTitle() {
+  String _getChartTitle(String metric) {
+    String timeRange;
     switch (_selectedTimeRange) {
       case TimeRange.week:
-        return 'Past 7 Days 📈';
+        timeRange = 'Past 7 Days';
+        break;
       case TimeRange.month:
-        return 'Past Month (Weekly) 📈';
+        timeRange = 'Past Month (Weekly)';
+        break;
       case TimeRange.threeMonths:
-        return 'Past 3 Months (Weekly) 📈';
+        timeRange = 'Past 3 Months (Weekly)';
+        break;
       case TimeRange.year:
-        return 'Past Year (Monthly) 📈';
+        timeRange = 'Past Year (Monthly)';
+        break;
       case TimeRange.allTime:
-        return 'All Time (Monthly) 📈';
+        timeRange = 'All Time (Monthly)';
+        break;
     }
+
+    final emoji = metric == 'Drinks' ? '📈' : '💰';
+    return '$metric by $timeRange $emoji';
   }
 
   Widget _buildHealthTips() {
@@ -808,6 +1002,14 @@ class _StatsScreenState extends State<StatsScreen> {
     } else {
       tip = "Consider reducing your alcohol intake for better health. 🚨";
       tipColor = const Color(0xFFFF3B30); // iOS red
+    }
+
+    // Add cost-saving tip if cost tracking is enabled
+    if (_costTrackingEnabled && _totalCost > 0) {
+      final monthlyCost = _totalCost * 30 / _getDrinkingDays().length;
+      if (monthlyCost > 200) {
+        tip += " You could save around $_currencySymbol${(monthlyCost * 0.3).toStringAsFixed(2)} per month by reducing your drinking by 30%.";
+      }
     }
 
     return Container(
