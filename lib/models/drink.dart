@@ -1,5 +1,5 @@
 // lib/models/drink.dart
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 enum DrinkType {
   beer,
@@ -44,15 +44,15 @@ class Drink {
   static Color getColorForType(DrinkType type) {
     switch (type) {
       case DrinkType.beer:
-        return Colors.amber;
+        return CupertinoColors.systemYellow;
       case DrinkType.wine:
-        return Colors.redAccent;
+        return CupertinoColors.systemRed;
       case DrinkType.cocktail:
-        return Colors.pinkAccent;
+        return CupertinoColors.systemPink;
       case DrinkType.shot:
-        return Colors.deepOrangeAccent;
+        return CupertinoColors.systemOrange;
       case DrinkType.other:
-        return Colors.purpleAccent;
+        return CupertinoColors.systemPurple;
     }
   }
 
@@ -69,11 +69,11 @@ class Drink {
 
   factory Drink.fromJson(Map<String, dynamic> json) {
     return Drink(
-      id: json['id'],
-      type: DrinkType.values[json['type']],
-      standardDrinks: json['standardDrinks'],
-      timestamp: DateTime.parse(json['timestamp']),
-      note: json['note'],
+      id: json['id'] as String,
+      type: DrinkType.values[json['type'] as int],
+      standardDrinks: (json['standardDrinks'] as num).toDouble(),
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      note: json['note'] as String?,
     );
   }
 }

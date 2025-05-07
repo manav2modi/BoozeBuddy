@@ -1,7 +1,8 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sip_track/utils/theme.dart';
+import 'package:flutter/cupertino.dart';
+import 'utils/theme.dart';
 import 'screens/home_screen.dart';
 
 void main() {
@@ -17,7 +18,8 @@ void main() {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
     ),
   );
 
@@ -31,9 +33,9 @@ class SipTrackApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SipTrack 🍻',
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.iosTheme,
       debugShowCheckedModeBanner: false,
-      home: HomeScreen(),
+      home: const HomeScreen(),
     );
   }
 }

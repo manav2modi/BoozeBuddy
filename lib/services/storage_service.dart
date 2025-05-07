@@ -7,80 +7,110 @@ class StorageService {
   static const String _drinksKey = 'drinks';
 
   // Save a drink to storage
-  Future<void> saveDrink(Drink drink) async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<bool> saveDrink(Drink drink) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
 
-    // Get existing drinks
-    List<Drink> drinks = await getDrinks();
+      // Get existing drinks
+      List<Drink> drinks = await getDrinks();
 
-    // Add new drink
-    drinks.add(drink);
+      // Add new drink
+      drinks.add(drink);
 
-    // Convert to JSON
-    List<String> drinksJson = drinks.map((drink) => jsonEncode(drink.toJson())).toList();
+      // Convert to JSON
+      List<String> drinksJson = drinks.map((drink) => jsonEncode(drink.toJson())).toList();
 
-    // Save to storage
-    await prefs.setStringList(_drinksKey, drinksJson);
+      // Save to storage
+      return await prefs.setStringList(_drinksKey, drinksJson);
+    } catch (e) {
+      print('Error saving drink: $e');
+      return false;
+    }
   }
 
   // Get all drinks from storage
   Future<List<Drink>> getDrinks() async {
-    final prefs = await SharedPreferences.getInstance();
+    try {
+      final prefs = await SharedPreferences.getInstance();
 
-    // Get saved drinks JSON strings
-    List<String>? drinksJson = prefs.getStringList(_drinksKey);
+      // Get saved drinks JSON strings
+      List<String>? drinksJson = prefs.getStringList(_drinksKey);
 
-    if (drinksJson == null) {
+      if (drinksJson == null || drinksJson.isEmpty) {
+        return [];
+      }
+
+      // Convert JSON to Drink objects
+      return drinksJson
+          .map((drinkJson) => Drink.fromJson(jsonDecode(drinkJson)))
+          .toList();
+    } catch (e) {
+      print('Error getting drinks: $e');
       return [];
     }
-
-    // Convert JSON to Drink objects
-    return drinksJson
-        .map((drinkJson) => Drink.fromJson(jsonDecode(drinkJson)))
-        .toList();
   }
 
   // Get drinks for a specific date
   Future<List<Drink>> getDrinksForDate(DateTime date) async {
-    List<Drink> allDrinks = await getDrinks();
+    try {
+      List<Drink> allDrinks = await getDrinks();
 
-    return allDrinks.where((drink) {
-      return drink.timestamp.year == date.year &&
-          drink.timestamp.month == date.month &&
-          drink.timestamp.day == date.day;
-    }).toList();
+      return allDrinks.where((drink) {
+        return drink.timestamp.year == date.year &&
+            drink.timestamp.month == date.month &&
+            drink.timestamp.day == date.day;
+      }).toList();
+    } catch (e) {
+      print('Error getting drinks for date: $e');
+      return [];
+    }
   }
 
   // Get drinks for a date range
   Future<List<Drink>> getDrinksForDateRange(DateTime start, DateTime end) async {
-    List<Drink> allDrinks = await getDrinks();
+    try {
+      List<Drink> allDrinks = await getDrinks();
 
-    return allDrinks.where((drink) {
-      return drink.timestamp.isAfter(start.subtract(const Duration(days: 1))) &&
-          drink.timestamp.isBefore(end.add(const Duration(days: 1)));
-    }).toList();
+      return allDrinks.where((drink) {
+        return drink.timestamp.isAfter(start.subtract(const Duration(days: 1))) &&
+            drink.timestamp.isBefore(end.add(const Duration(days: 1)));
+      }).toList();
+    } catch (e) {
+      print('Error getting drinks for date range: $e');
+      return [];
+    }
   }
 
   // Delete a drink
-  Future<void> deleteDrink(String id) async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<bool> deleteDrink(String id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
 
-    // Get existing drinks
-    List<Drink> drinks = await getDrinks();
+      // Get existing drinks
+      List<Drink> drinks = await getDrinks();
 
-    // Remove the drink with matching ID
-    drinks.removeWhere((drink) => drink.id == id);
+      // Remove the drink with matching ID
+      drinks.removeWhere((drink) => drink.id == id);
 
-    // Convert to JSON
-    List<String> drinksJson = drinks.map((drink) => jsonEncode(drink.toJson())).toList();
+      // Convert to JSON
+      List<String> drinksJson = drinks.map((drink) => jsonEncode(drink.toJson())).toList();
 
-    // Save to storage
-    await prefs.setStringList(_drinksKey, drinksJson);
+      // Save to storage
+      return await prefs.setStringList(_drinksKey, drinksJson);
+    } catch (e) {
+      print('Error deleting drink: $e');
+      return false;
+    }
   }
 
   // Clear all drinks
-  Future<void> clearAllDrinks() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_drinksKey);
+  Future<bool> clearAllDrinks() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return await prefs.remove(_drinksKey);
+    } catch (e) {
+      print('Error clearing drinks: $e');
+      return false;
+    }
   }
 }

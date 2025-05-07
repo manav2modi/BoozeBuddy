@@ -1,10 +1,11 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import '../models/drink.dart';
 import '../services/storage_service.dart';
-import 'add_drink_screen.dart';
-import 'stats_screen.dart';
+import './add_drink_screen.dart'; // Make sure this path is correct
+import './stats_screen.dart'; // Make sure this path is correct
 import '../widgets/drink_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -20,11 +21,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   DateTime _selectedDate = DateTime.now();
   List<Drink> _drinks = [];
   bool _isLoading = true;
+  int _currentTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {
+          _currentTabIndex = _tabController.index;
+        });
+      }
+    });
     _loadDrinks();
   }
 
@@ -39,12 +48,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _isLoading = true;
     });
 
-    final drinks = await _storageService.getDrinksForDate(_selectedDate);
+    try {
+      final drinks = await _storageService.getDrinksForDate(_selectedDate);
 
-    setState(() {
-      _drinks = drinks;
-      _isLoading = false;
-    });
+      setState(() {
+        _drinks = drinks;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading drinks: $e');
+      setState(() {
+        _drinks = [];
+        _isLoading = false;
+      });
+    }
   }
 
   double get _totalStandardDrinks {
@@ -52,202 +69,272 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Colors.amber,
-              onPrimary: Colors.black,
-              surface: Color(0xFF2C2C2C),
-              onSurface: Colors.white,
+    // iOS style date picker
+    showCupertinoModalPopup(
+        context: context,
+        builder: (BuildContext context) {
+          return Container(
+            height: 300,
+            color: CupertinoColors.systemBackground,
+            child: Column(
+              children: [
+                Container(
+                  height: 44,
+                  color: CupertinoColors.systemBackground,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      CupertinoButton(
+                        child: const Text('Cancel'),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                      CupertinoButton(
+                        child: const Text('Done'),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _loadDrinks();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 0),
+                Expanded(
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.date,
+                    initialDateTime: _selectedDate,
+                    maximumDate: DateTime.now(),
+                    minimumDate: DateTime.now().subtract(const Duration(days: 365)),
+                    onDateTimeChanged: (DateTime newDate) {
+                      setState(() {
+                        _selectedDate = newDate;
+                      });
+                    },
+                  ),
+                ),
+              ],
             ),
-          ),
-          child: child!,
-        );
-      },
+          );
+        }
     );
+  }
 
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-      });
-      _loadDrinks();
-    }
+  Future<bool> _showDeleteConfirmation(BuildContext context) async {
+    return await showCupertinoDialog<bool>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Delete Drink'),
+        content: const Text('Are you sure you want to delete this drink?'),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            child: const Text('Delete'),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    ) ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            SliverAppBar(
-              expandedHeight: 180,
-              floating: true,
-              pinned: true,
-              flexibleSpace: FlexibleSpaceBar(
-                title: Text(
-                  'SipTrack 🍻',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: const Offset(1, 1),
-                        blurRadius: 3.0,
-                        color: Colors.black.withOpacity(0.5),
-                      ),
-                    ],
-                  ),
-                ),
-                background: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Theme.of(context).primaryColor,
-                        Theme.of(context).colorScheme.secondary,
-                      ],
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 50, left: 16, right: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 30),
-                        Row(
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: () => _selectDate(context),
-                              icon: const Icon(Icons.calendar_today, size: 16),
-                              label: Text(
-                                DateFormat('MMM d, yyyy').format(_selectedDate),
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white.withOpacity(0.2),
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              "${_totalStandardDrinks.toStringAsFixed(1)} 🥃",
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              bottom: TabBar(
-                controller: _tabController,
-                indicatorColor: Colors.white,
-                indicatorWeight: 3,
-                tabs: const [
-                  Tab(text: "Today's Drinks"),
-                  Tab(text: "Stats"),
-                ],
-              ),
-            ),
-          ];
-        },
-        body: TabBarView(
-          controller: _tabController,
+      body: SafeArea(
+        child: Column(
           children: [
-            // Today's Drinks Tab
-            _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _drinks.isEmpty
-                ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.local_bar_outlined,
-                    size: 72,
-                    color: Colors.white54,
+            // App bar
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: CupertinoColors.systemBackground,
+                border: Border(
+                  bottom: BorderSide(
+                    color: CupertinoColors.systemGrey5,
+                    width: 0.5,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "No drinks logged for ${DateFormat('MMM d').format(_selectedDate)}",
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white54,
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'SipTrack 🍻',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      final result = await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const AddDrinkScreen(),
-                        ),
-                      );
-
-                      if (result == true) {
-                        _loadDrinks();
-                      }
-                    },
-                    icon: const Icon(Icons.add),
-                    label: const Text("Add Your First Drink"),
+                  const Spacer(),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    child: Text(
+                      DateFormat('MMM d').format(_selectedDate),
+                      style: const TextStyle(color: CupertinoColors.activeBlue),
+                    ),
+                    onPressed: () => _selectDate(context),
                   ),
                 ],
               ),
-            )
-                : RefreshIndicator(
-              onRefresh: _loadDrinks,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _drinks.length,
-                itemBuilder: (context, index) {
-                  final drink = _drinks[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: DrinkCard(
-                      drink: drink,
-                      onDelete: () async {
-                        await _storageService.deleteDrink(drink.id);
-                        _loadDrinks();
-                      },
+            ),
+
+            // Stats summary
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: CupertinoColors.systemBackground,
+                border: Border(
+                  bottom: BorderSide(
+                    color: CupertinoColors.systemGrey5,
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'Today\'s Total:',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                     ),
-                  );
-                },
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.activeBlue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('🥃', style: TextStyle(fontSize: 16)),
+                        const SizedBox(width: 4),
+                        Text(
+                          _totalStandardDrinks.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: CupertinoColors.activeBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
 
-            // Stats Tab
-            const StatsScreen(),
+            // Tab bar
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              child: CupertinoSegmentedControl<int>(
+                children: const {
+                  0: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    child: Text('Drinks'),
+                  ),
+                  1: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    child: Text('Stats'),
+                  ),
+                },
+                onValueChanged: (int newValue) {
+                  setState(() {
+                    _currentTabIndex = newValue;
+                    _tabController.animateTo(newValue);
+                  });
+                },
+                groupValue: _currentTabIndex,
+              ),
+            ),
+
+            // Tab content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Today's Drinks Tab
+                  _isLoading
+                      ? const Center(child: CupertinoActivityIndicator())
+                      : _drinks.isEmpty
+                      ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          CupertinoIcons.creditcard_fill,  // Changed icon to one that exists in CupertinoIcons
+                          size: 72,
+                          color: CupertinoColors.systemGrey3,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No drinks logged for ${DateFormat('MMM d').format(_selectedDate)}",
+                          style: const TextStyle(
+                            color: CupertinoColors.systemGrey,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        CupertinoButton.filled(
+                          child: const Text("Add Your First Drink"),
+                          onPressed: () => _navigateToAddDrink(),
+                        ),
+                      ],
+                    ),
+                  )
+                      : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _drinks.length,
+                    separatorBuilder: (context, index) => const Divider(),
+                    itemBuilder: (context, index) {
+                      final drink = _drinks[index];
+                      return DrinkCard(
+                        drink: drink,
+                        onDelete: () async {
+                          final confirmed = await _showDeleteConfirmation(context);
+                          if (confirmed) {
+                            await _storageService.deleteDrink(drink.id);
+                            _loadDrinks();
+                          }
+                        },
+                      );
+                    },
+                  ),
+
+                  // Stats Tab
+                  if (_currentTabIndex == 1) const StatsScreen() else Container(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      floatingActionButton: _tabController.index == 0
+      floatingActionButton: _currentTabIndex == 0
           ? FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const AddDrinkScreen(),
-            ),
-          );
-
-          if (result == true) {
-            _loadDrinks();
-          }
-        },
-        child: const Icon(Icons.add),
+        backgroundColor: CupertinoColors.activeBlue,
+        child: const Icon(CupertinoIcons.add),
+        onPressed: _navigateToAddDrink,
       )
           : null,
     );
+  }
+
+  // Create a method to navigate to AddDrinkScreen to avoid duplicated code
+  Future<void> _navigateToAddDrink() async {
+    final result = await Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (context) => AddDrinkScreen(selectedDate: _selectedDate),
+      ),
+    );
+
+    if (result == true) {
+      _loadDrinks();
+    }
   }
 }

@@ -1,5 +1,6 @@
 // lib/widgets/drink_card.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import '../models/drink.dart';
 
@@ -20,40 +21,33 @@ class DrinkCard extends StatelessWidget {
     final String typeString = drink.type.toString().split('.').last;
     final timeString = DateFormat('h:mm a').format(drink.timestamp);
 
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: color.withOpacity(0.4),
-          width: 1,
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemBackground,
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onLongPress: () {
-          _showDeleteDialog(context);
-        },
+      child: GestureDetector(
+        onLongPress: onDelete,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             children: [
               // Left part with emoji and drink type
               Container(
-                width: 60,
-                height: 60,
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
                   child: Text(
                     emoji,
-                    style: const TextStyle(fontSize: 28),
+                    style: const TextStyle(fontSize: 24),
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
 
               // Middle part with details
               Expanded(
@@ -63,25 +57,25 @@ class DrinkCard extends StatelessWidget {
                     Text(
                       typeString,
                       style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       timeString,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
-                        color: Colors.white.withOpacity(0.7),
+                        color: CupertinoColors.systemGrey,
                       ),
                     ),
                     if (drink.note != null && drink.note!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         drink.note!,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
+                          color: CupertinoColors.systemGrey,
                           fontStyle: FontStyle.italic,
                         ),
                         maxLines: 2,
@@ -95,12 +89,12 @@ class DrinkCard extends StatelessWidget {
               // Right part with standard drinks
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+                  horizontal: 10,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(16),
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
@@ -111,60 +105,30 @@ class DrinkCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       drink.standardDrinks.toStringAsFixed(1),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
+                        color: color,
                       ),
                     ),
                   ],
                 ),
               ),
+
+              // Delete button
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                child: const Icon(
+                  CupertinoIcons.delete,
+                  color: CupertinoColors.systemGrey,
+                  size: 20,
+                ),
+                onPressed: onDelete,
+              ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  void _showDeleteDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Text(Drink.getEmojiForType(drink.type)),
-              const SizedBox(width: 8),
-              const Text('Delete Drink?'),
-            ],
-          ),
-          content: const Text(
-            'Are you sure you want to delete this drink? This action cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('CANCEL'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                onDelete();
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.redAccent,
-              ),
-              child: const Text('DELETE'),
-            ),
-          ],
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          backgroundColor: Theme.of(context).cardColor,
-        );
-      },
     );
   }
 }

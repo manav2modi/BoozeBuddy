@@ -1,5 +1,6 @@
 // lib/screens/stats_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import '../models/drink.dart';
 import '../services/storage_service.dart';
@@ -31,12 +32,20 @@ class _StatsScreenState extends State<StatsScreen> {
     final now = DateTime.now();
     final startOfWeek = DateTime(now.year, now.month, now.day - 6);
 
-    final drinks = await _storageService.getDrinksForDateRange(startOfWeek, now);
+    try {
+      final drinks = await _storageService.getDrinksForDateRange(startOfWeek, now);
 
-    setState(() {
-      _weeklyDrinks = drinks;
-      _isLoading = false;
-    });
+      setState(() {
+        _weeklyDrinks = drinks;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Error loading weekly drinks: $e');
+      setState(() {
+        _weeklyDrinks = [];
+        _isLoading = false;
+      });
+    }
   }
 
   // Get map with date as key and total drinks as value
@@ -94,188 +103,216 @@ class _StatsScreenState extends State<StatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _loadWeeklyDrinks,
-      child: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _weeklyDrinks.isEmpty
-          ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.bar_chart,
-              size: 72,
-              color: Colors.white54,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "No drinks logged in the last 7 days",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.white54,
-              ),
-            ),
-          ],
+    return CustomScrollView(
+      slivers: [
+        CupertinoSliverRefreshControl(
+          onRefresh: _loadWeeklyDrinks,
         ),
-      )
-          : ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Weekly Summary Card
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Weekly Summary 📊',
-                    style: Theme.of(context).textTheme.titleLarge,
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _isLoading
+              ? const Center(child: CupertinoActivityIndicator())
+              : _weeklyDrinks.isEmpty
+              ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  CupertinoIcons.chart_bar_alt_fill,
+                  size: 72,
+                  color: CupertinoColors.systemGrey3,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "No drinks logged in the last 7 days",
+                  style: TextStyle(
+                    color: CupertinoColors.systemGrey,
+                    fontSize: 16,
                   ),
-                  const SizedBox(height: 16),
-                  Row(
+                ),
+              ],
+            ),
+          )
+              : Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Weekly Summary Card
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.systemBackground,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: CupertinoColors.systemGrey5,
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _StatTile(
-                        emoji: '🥃',
-                        title: 'Total',
-                        value: _totalDrinks.toStringAsFixed(1),
+                      const Text(
+                        'Weekly Summary 📊',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      _StatTile(
-                        emoji: '📅',
-                        title: 'Avg/Day',
-                        value: _averageDrinksPerDay.toStringAsFixed(1),
-                      ),
-                      _StatTile(
-                        emoji: '🔝',
-                        title: 'Most Common',
-                        value: _drinkCountByType.isEmpty
-                            ? 'N/A'
-                            : Drink.getEmojiForType(
-                            _drinkCountByType.entries
-                                .reduce((a, b) =>
-                            a.value > b.value ? a : b)
-                                .key),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          _StatTile(
+                            emoji: '🥃',
+                            title: 'Total',
+                            value: _totalDrinks.toStringAsFixed(1),
+                          ),
+                          _StatTile(
+                            emoji: '📅',
+                            title: 'Avg/Day',
+                            value: _averageDrinksPerDay.toStringAsFixed(1),
+                          ),
+                          _StatTile(
+                            emoji: '🔝',
+                            title: 'Most Common',
+                            value: _drinkCountByType.isEmpty
+                                ? 'N/A'
+                                : Drink.getEmojiForType(
+                                _drinkCountByType.entries
+                                    .reduce((a, b) =>
+                                a.value > b.value ? a : b)
+                                    .key),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-          ),
+                ),
 
-          const SizedBox(height: 16),
-
-          // Weekly Chart
-          Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Last 7 Days 📈',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    height: 200,
-                    child: _SimpleBarChart(
-                      data: _drinksByDay,
-                      maxValue: _drinksByDay.values.isEmpty
-                          ? 5
-                          : (_drinksByDay.values
-                          .reduce((a, b) => a > b ? a : b) +
-                          1),
-                      barColor: Theme.of(context).colorScheme.secondary,
+                // Weekly Chart
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.systemBackground,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: CupertinoColors.systemGrey5,
+                      width: 1,
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Last 7 Days 📈',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        height: 200,
+                        child: _SimpleBarChart(
+                          data: _drinksByDay,
+                          maxValue: _drinksByDay.values.isEmpty
+                              ? 5
+                              : (_drinksByDay.values
+                              .reduce((a, b) => a > b ? a : b) +
+                              1),
+                          barColor: CupertinoColors.activeBlue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
-          const SizedBox(height: 16),
-
-          // Drink Types Distribution
-          if (_drinkCountByType.isNotEmpty)
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Drinks by Type 🍹',
-                      style: Theme.of(context).textTheme.titleLarge,
+                // Drink Types Distribution
+                if (_drinkCountByType.isNotEmpty)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemBackground,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: CupertinoColors.systemGrey5,
+                        width: 1,
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    ..._drinkCountByType.entries
-                        .toList()
-                        .map((entry) {
-                      final type = entry.key;
-                      final count = entry.value;
-                      final percentage = count /
-                          _weeklyDrinks.length *
-                          100;
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Drinks by Type 🍹',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ..._drinkCountByType.entries
+                            .toList()
+                            .map((entry) {
+                          final type = entry.key;
+                          final count = entry.value;
+                          final percentage = count /
+                              _weeklyDrinks.length *
+                              100;
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Column(
-                          crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  '${Drink.getEmojiForType(type)} ${type.toString().split('.').last}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      '${Drink.getEmojiForType(type)} ${type.toString().split('.').last}',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '$count (${percentage.toStringAsFixed(0)}%)',
+                                      style: TextStyle(
+                                        color: Drink.getColorForType(type),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const Spacer(),
-                                Text(
-                                  '$count (${percentage.toStringAsFixed(0)}%)',
-                                  style: TextStyle(
+                                const SizedBox(height: 6),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: count / _weeklyDrinks.length,
+                                    backgroundColor:
+                                    CupertinoColors.systemGrey5,
                                     color: Drink.getColorForType(type),
-                                    fontWeight: FontWeight.bold,
+                                    minHeight: 8,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: count / _weeklyDrinks.length,
-                                backgroundColor:
-                                Colors.grey.withOpacity(0.2),
-                                color: Drink.getColorForType(type),
-                                minHeight: 8,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ],
-                ),
-              ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -303,14 +340,18 @@ class _StatTile extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             title,
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: const TextStyle(
+              fontSize: 14,
+              color: CupertinoColors.systemGrey,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+            style: const TextStyle(
+              fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.secondary,
+              color: CupertinoColors.activeBlue,
             ),
           ),
         ],
@@ -363,7 +404,7 @@ class _SimpleBarChart extends StatelessWidget {
                   height: 150 * percentage,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: value > 0 ? barColor : Colors.grey.withOpacity(0.2),
+                    color: value > 0 ? barColor : CupertinoColors.systemGrey5,
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(6),
                       topRight: Radius.circular(6),
@@ -376,7 +417,7 @@ class _SimpleBarChart extends StatelessWidget {
                   DateFormat('E').format(date),
                   style: const TextStyle(
                     fontSize: 12,
-                    color: Colors.white70,
+                    color: CupertinoColors.systemGrey,
                   ),
                 ),
               ],
