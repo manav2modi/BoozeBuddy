@@ -1,21 +1,25 @@
 // lib/models/drink.dart
 import 'package:flutter/cupertino.dart';
+import 'custom_drink.dart';
 
 enum DrinkType {
   beer,
   wine,
   cocktail,
   shot,
-  other
+  other,
+  custom // New type for custom drinks
 }
 
 class Drink {
   final String id;
   final DrinkType type;
-  final double standardDrinks; // Alcohol content in standard drinks
+  final double standardDrinks;
   final DateTime timestamp;
   final String? note;
-  final double? cost; // Optional cost field
+  final double? cost;
+  final String? location;
+  final String? customDrinkId; // Reference to custom drink if type is custom
 
   Drink({
     required this.id,
@@ -23,11 +27,19 @@ class Drink {
     required this.standardDrinks,
     required this.timestamp,
     this.note,
-    this.cost, // Optional cost
+    this.cost,
+    this.location,
+    this.customDrinkId, // Optional custom drink ID
   });
 
   // Helper method to get emoji for drink type
-  static String getEmojiForType(DrinkType type) {
+  static String getEmojiForType(DrinkType type, {String? customEmoji}) {
+    // If it's a custom drink with provided emoji, use that
+    if (type == DrinkType.custom && customEmoji != null) {
+      return customEmoji;
+    }
+
+    // Otherwise fall back to default emojis
     switch (type) {
       case DrinkType.beer:
         return '🍺';
@@ -39,11 +51,19 @@ class Drink {
         return '🥃';
       case DrinkType.other:
         return '🍸';
+      case DrinkType.custom:
+        return '🍻'; // Default for custom drinks with no emoji
     }
   }
 
   // Helper method to get color for drink type - optimized for dark mode
-  static Color getColorForType(DrinkType type) {
+  static Color getColorForType(DrinkType type, {Color? customColor}) {
+    // If it's a custom drink with provided color, use that
+    if (type == DrinkType.custom && customColor != null) {
+      return customColor;
+    }
+
+    // Otherwise fall back to default colors
     switch (type) {
       case DrinkType.beer:
         return const Color(0xFFFFC107); // Brighter amber for dark theme
@@ -55,6 +75,8 @@ class Drink {
         return const Color(0xFFFF9800); // Brighter orange for dark theme
       case DrinkType.other:
         return const Color(0xFFB388FF); // Brighter purple for dark theme
+      case DrinkType.custom:
+        return const Color(0xFF64B5F6); // Default blue for custom drinks
     }
   }
 
@@ -66,7 +88,9 @@ class Drink {
       'standardDrinks': standardDrinks,
       'timestamp': timestamp.toIso8601String(),
       'note': note,
-      'cost': cost, // Include cost in JSON
+      'cost': cost,
+      'location': location,
+      'customDrinkId': customDrinkId,
     };
   }
 
@@ -77,7 +101,9 @@ class Drink {
       standardDrinks: (json['standardDrinks'] as num).toDouble(),
       timestamp: DateTime.parse(json['timestamp'] as String),
       note: json['note'] as String?,
-      cost: json['cost'] != null ? (json['cost'] as num).toDouble() : null, // Parse cost if available
+      cost: json['cost'] != null ? (json['cost'] as num).toDouble() : null,
+      location: json['location'] as String?,
+      customDrinkId: json['customDrinkId'] as String?,
     );
   }
 }

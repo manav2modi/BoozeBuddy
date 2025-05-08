@@ -6,6 +6,7 @@ import 'utils/theme.dart';
 import 'screens/home_screen.dart';
 
 void main() {
+  WidgetsApp.debugAllowBannerOverride = false;
   WidgetsFlutterBinding.ensureInitialized();
 
   // Set preferred orientations
@@ -32,7 +33,7 @@ class SipTrackApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SipTrack 🍻',
+      title: 'BoozeBuddy 🍻',
       theme: AppTheme.darkTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark,

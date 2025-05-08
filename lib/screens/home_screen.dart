@@ -209,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Row(
                 children: [
                   const Text(
-                    'SipTrack 🍻',
+                    'BoozeBuddy 🍻',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,

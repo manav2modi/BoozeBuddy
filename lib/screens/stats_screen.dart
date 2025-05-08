@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import '../models/drink.dart';
+import '../models/custom_drink.dart';
 import '../services/storage_service.dart';
 import '../services/settings_service.dart';
+import '../services/custom_drinks_service.dart';
 
 enum TimeRange {
   week,
@@ -24,8 +26,11 @@ class StatsScreen extends StatefulWidget {
 class _StatsScreenState extends State<StatsScreen> {
   final StorageService _storageService = StorageService();
   final SettingsService _settingsService = SettingsService();
+  final CustomDrinksService _customDrinksService = CustomDrinksService();
   List<Drink> _drinks = [];
+  List<CustomDrink> _customDrinks = [];
   bool _isLoading = true;
+  bool _loadingCustomDrinks = true;
   TimeRange _selectedTimeRange = TimeRange.week;
   bool _costTrackingEnabled = false;
   String _currencySymbol = '\$';
@@ -42,6 +47,7 @@ class _StatsScreenState extends State<StatsScreen> {
     super.initState();
     _loadSettings();
     _loadDrinks();
+    _loadCustomDrinks();
   }
 
   Future<void> _loadSettings() async {
@@ -52,6 +58,26 @@ class _StatsScreenState extends State<StatsScreen> {
       _costTrackingEnabled = costTrackingEnabled;
       _currencySymbol = currencySymbol;
     });
+  }
+
+  Future<void> _loadCustomDrinks() async {
+    setState(() {
+      _loadingCustomDrinks = true;
+    });
+
+    try {
+      final customDrinks = await _customDrinksService.getCustomDrinks();
+      setState(() {
+        _customDrinks = customDrinks;
+        _loadingCustomDrinks = false;
+      });
+    } catch (e) {
+      print('Error loading custom drinks: $e');
+      setState(() {
+        _customDrinks = [];
+        _loadingCustomDrinks = false;
+      });
+    }
   }
 
   Future<void> _loadDrinks() async {
@@ -102,6 +128,16 @@ class _StatsScreenState extends State<StatsScreen> {
       return drink.timestamp.isAfter(startDate.subtract(const Duration(days: 1))) &&
           drink.timestamp.isBefore(now.add(const Duration(days: 1)));
     }).toList();
+  }
+
+  // Get the custom drink for a specific ID
+  CustomDrink? _getCustomDrinkById(String id) {
+    for (var drink in _customDrinks) {
+      if (drink.id == id) {
+        return drink;
+      }
+    }
+    return null;
   }
 
   // Get chart data based on time range - with proper grouping
@@ -257,37 +293,172 @@ class _StatsScreenState extends State<StatsScreen> {
     return result;
   }
 
-  // Get drink counts by type
-  Map<DrinkType, int> get _drinkCountByType {
-    final Map<DrinkType, int> result = {};
+  // Enhanced drink type display for statistics to include custom drinks
+  Map<String, double> get _drinksByCategory {
+    final Map<String, double> result = {};
+
+    // Initialize standard categories
+    result['Beer'] = 0;
+    result['Wine'] = 0;
+    result['Cocktail'] = 0;
+    result['Shot'] = 0;
+    result['Other'] = 0;
+
+    // Add custom categories
+    Map<String, double> customCategories = {};
 
     for (final drink in _filteredDrinks) {
-      result[drink.type] = (result[drink.type] ?? 0) + 1;
+      if (drink.type == DrinkType.custom && drink.customDrinkId != null) {
+        // Try to find the custom drink
+        final customDrink = _getCustomDrinkById(drink.customDrinkId!);
+        if (customDrink != null) {
+          // Add to custom categories
+          final name = customDrink.name;
+          customCategories[name] = (customCategories[name] ?? 0) + drink.standardDrinks;
+        } else {
+          // If custom drink not found, add to Other
+          result['Other'] = result['Other']! + drink.standardDrinks;
+        }
+      } else {
+        // Add to standard categories
+        switch (drink.type) {
+          case DrinkType.beer:
+            result['Beer'] = result['Beer']! + drink.standardDrinks;
+            break;
+          case DrinkType.wine:
+            result['Wine'] = result['Wine']! + drink.standardDrinks;
+            break;
+          case DrinkType.cocktail:
+            result['Cocktail'] = result['Cocktail']! + drink.standardDrinks;
+            break;
+          case DrinkType.shot:
+            result['Shot'] = result['Shot']! + drink.standardDrinks;
+            break;
+          case DrinkType.other:
+          case DrinkType.custom: // Fallback
+            result['Other'] = result['Other']! + drink.standardDrinks;
+            break;
+        }
+      }
     }
+
+    // Add custom categories to the result
+    // Only include top custom drinks to avoid cluttering
+    final sortedCustomCategories = customCategories.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    // Add top 3 custom drink types
+    for (int i = 0; i < sortedCustomCategories.length && i < 3; i++) {
+      final entry = sortedCustomCategories[i];
+      result[entry.key] = entry.value;
+    }
+
+    // Remove any categories with 0 drinks
+    result.removeWhere((key, value) => value == 0);
 
     return result;
   }
 
-  // Get standard drinks by type
-  Map<DrinkType, double> get _standardDrinksByType {
-    final Map<DrinkType, double> result = {};
-
-    for (final drink in _filteredDrinks) {
-      result[drink.type] = (result[drink.type] ?? 0) + drink.standardDrinks;
+  // Get emoji for a category
+  String _getEmojiForCategory(String category) {
+    // Check if it's a standard category
+    switch (category) {
+      case 'Beer':
+        return '🍺';
+      case 'Wine':
+        return '🍷';
+      case 'Cocktail':
+        return '🍹';
+      case 'Shot':
+        return '🥃';
+      case 'Other':
+        return '🍸';
+      default:
+        // Check if it's a custom category
+        for (var customDrink in _customDrinks) {
+          if (customDrink.name == category) {
+            return customDrink.emoji;
+          }
+        }
+        // Default emoji if not found
+        return '🍻';
     }
+  }
 
-    return result;
+  // Get color for a category
+  Color _getColorForCategory(String category) {
+    // Check if it's a standard category
+    switch (category) {
+      case 'Beer':
+        return const Color(0xFFFFC107);
+      case 'Wine':
+        return const Color(0xFFFF5252);
+      case 'Cocktail':
+        return const Color(0xFFFF4081);
+      case 'Shot':
+        return const Color(0xFFFF9800);
+      case 'Other':
+        return const Color(0xFFB388FF);
+      default:
+        // Check if it's a custom category
+        for (var customDrink in _customDrinks) {
+          if (customDrink.name == category) {
+            return customDrink.color;
+          }
+        }
+        // Default color if not found
+        return const Color(0xFF64B5F6);
+    }
   }
 
   // Get costs by drink type
-  Map<DrinkType, double> get _costsByType {
+  Map<String, double> get _costsByCategory {
     if (!_costTrackingEnabled) return {};
 
-    final Map<DrinkType, double> result = {};
+    final Map<String, double> result = {};
+    final categories = _drinksByCategory.keys.toList();
+
+    // Initialize categories with zero costs
+    for (var category in categories) {
+      result[category] = 0;
+    }
 
     for (final drink in _filteredDrinks) {
-      if (drink.cost != null) {
-        result[drink.type] = (result[drink.type] ?? 0) + drink.cost!;
+      if (drink.cost == null) continue;
+
+      String category = 'Other';
+
+      if (drink.type == DrinkType.custom && drink.customDrinkId != null) {
+        // Try to find the custom drink
+        final customDrink = _getCustomDrinkById(drink.customDrinkId!);
+        if (customDrink != null) {
+          category = customDrink.name;
+        }
+      } else {
+        // Standard drink types
+        switch (drink.type) {
+          case DrinkType.beer:
+            category = 'Beer';
+            break;
+          case DrinkType.wine:
+            category = 'Wine';
+            break;
+          case DrinkType.cocktail:
+            category = 'Cocktail';
+            break;
+          case DrinkType.shot:
+            category = 'Shot';
+            break;
+          case DrinkType.other:
+          case DrinkType.custom:
+            category = 'Other';
+            break;
+        }
+      }
+
+      // Add cost to category if it exists in our results
+      if (result.containsKey(category)) {
+        result[category] = result[category]! + drink.cost!;
       }
     }
 
@@ -383,6 +554,40 @@ class _StatsScreenState extends State<StatsScreen> {
     }
   }
 
+  // Get top locations
+  Map<String, int> get _topLocations {
+    final Map<String, int> locationCounts = {};
+
+    for (final drink in _filteredDrinks) {
+      if (drink.location != null && drink.location!.isNotEmpty) {
+        locationCounts[drink.location!] = (locationCounts[drink.location!] ?? 0) + 1;
+      }
+    }
+
+    // Sort by count (descending)
+    final sortedEntries = locationCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    // Return top locations (limited to 5)
+    final Map<String, int> result = {};
+    final topEntries = sortedEntries.take(5);
+    for (final entry in topEntries) {
+      result[entry.key] = entry.value;
+    }
+
+    return result;
+  }
+
+  // Check if we have any location data
+  bool get _hasLocationData {
+    for (final drink in _filteredDrinks) {
+      if (drink.location != null && drink.location!.isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   // Get all days where drinks were consumed
   Map<String, bool> _getDrinkingDays() {
     final Map<String, bool> drinkingDays = {};
@@ -398,6 +603,30 @@ class _StatsScreenState extends State<StatsScreen> {
   // Get total drinking days
   int get _totalDrinkingDays {
     return _getDrinkingDays().length;
+  }
+
+  String _getChartTitle(String metric) {
+    String timeRange;
+    switch (_selectedTimeRange) {
+      case TimeRange.week:
+        timeRange = 'Past 7 Days';
+        break;
+      case TimeRange.month:
+        timeRange = 'Past Month (Weekly)';
+        break;
+      case TimeRange.threeMonths:
+        timeRange = 'Past 3 Months (Weekly)';
+        break;
+      case TimeRange.year:
+        timeRange = 'Past Year (Monthly)';
+        break;
+      case TimeRange.allTime:
+        timeRange = 'All Time (Monthly)';
+        break;
+    }
+
+    final emoji = metric == 'Drinks' ? '📈' : '💰';
+    return '$metric by $timeRange $emoji';
   }
 
   @override
@@ -427,6 +656,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   style: TextStyle(
                     color: Color(0xFF888888),
                     fontSize: 16,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ],
@@ -459,6 +689,7 @@ class _StatsScreenState extends State<StatsScreen> {
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
+                          decoration: TextDecoration.none,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -474,6 +705,7 @@ class _StatsScreenState extends State<StatsScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.white,
+                                decoration: TextDecoration.none,
                               ),
                             ),
                           ),
@@ -484,6 +716,7 @@ class _StatsScreenState extends State<StatsScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.white,
+                                decoration: TextDecoration.none,
                               ),
                             ),
                           ),
@@ -494,6 +727,7 @@ class _StatsScreenState extends State<StatsScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.white,
+                                decoration: TextDecoration.none,
                               ),
                             ),
                           ),
@@ -504,6 +738,7 @@ class _StatsScreenState extends State<StatsScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.white,
+                                decoration: TextDecoration.none,
                               ),
                             ),
                           ),
@@ -514,6 +749,7 @@ class _StatsScreenState extends State<StatsScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.white,
+                                decoration: TextDecoration.none,
                               ),
                             ),
                           ),
@@ -552,6 +788,7 @@ class _StatsScreenState extends State<StatsScreen> {
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
+                          decoration: TextDecoration.none,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -591,10 +828,10 @@ class _StatsScreenState extends State<StatsScreen> {
                           _StatTile(
                             emoji: '🔠',
                             title: 'Fav Drink',
-                            value: _drinkCountByType.isEmpty
+                            value: _drinksByCategory.isEmpty
                                 ? 'N/A'
-                                : Drink.getEmojiForType(
-                                _drinkCountByType.entries
+                                : _getEmojiForCategory(
+                                _drinksByCategory.entries
                                     .reduce((a, b) =>
                                 a.value > b.value ? a : b)
                                     .key),
@@ -614,6 +851,7 @@ class _StatsScreenState extends State<StatsScreen> {
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
+                            decoration: TextDecoration.none,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -643,7 +881,6 @@ class _StatsScreenState extends State<StatsScreen> {
                   ),
                 ),
 
-                // Consumption Chart Card
                 Container(
                   width: double.infinity,
                   margin: const EdgeInsets.only(bottom: 16),
@@ -665,6 +902,7 @@ class _StatsScreenState extends State<StatsScreen> {
                           fontSize: 17,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
+                          decoration: TextDecoration.none,
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -699,6 +937,7 @@ class _StatsScreenState extends State<StatsScreen> {
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
+                            decoration: TextDecoration.none,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -711,7 +950,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   ),
 
                 // Drink Types Distribution
-                if (_standardDrinksByType.isNotEmpty)
+                if (_drinksByCategory.isNotEmpty)
                   Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 16),
@@ -733,21 +972,27 @@ class _StatsScreenState extends State<StatsScreen> {
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
+                            decoration: TextDecoration.none,
                           ),
                         ),
                         const SizedBox(height: 16),
-                        ..._standardDrinksByType.entries
+                        ..._drinksByCategory.entries
                             .toList()
                             .map((entry) {
-                          final type = entry.key;
+                          final category = entry.key;
                           final standardDrinks = entry.value;
                           final percentage = standardDrinks /
                               _totalStandardDrinks *
                               100;
 
-                          // Get cost for this drink type if available
-                          final cost = _costsByType[type];
-                          final hasCost = _costTrackingEnabled && cost != null;
+                          // Get emoji for this category
+                          final emoji = _getEmojiForCategory(category);
+                          // Get color for this category
+                          final color = _getColorForCategory(category);
+
+                          // Get cost for this type if available
+                          final cost = _costsByCategory[category];
+                          final hasCost = _costTrackingEnabled && cost != null && cost > 0;
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
@@ -758,19 +1003,21 @@ class _StatsScreenState extends State<StatsScreen> {
                                 Row(
                                   children: [
                                     Text(
-                                      '${Drink.getEmojiForType(type)} ${type.toString().split('.').last}',
+                                      '$emoji $category',
                                       style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w500,
                                         color: Colors.white,
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
                                     const Spacer(),
                                     Text(
                                       '${standardDrinks.toStringAsFixed(1)} (${percentage.toStringAsFixed(0)}%)',
                                       style: TextStyle(
-                                        color: Drink.getColorForType(type),
+                                        color: color,
                                         fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.none,
                                       ),
                                     ),
                                     if (hasCost) ...[
@@ -780,6 +1027,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                         style: const TextStyle(
                                           fontSize: 14,
                                           color: Color(0xFF888888),
+                                          decoration: TextDecoration.none,
                                         ),
                                       ),
                                     ],
@@ -791,7 +1039,7 @@ class _StatsScreenState extends State<StatsScreen> {
                                   child: LinearProgressIndicator(
                                     value: percentage / 100,
                                     backgroundColor: const Color(0xFF333333),
-                                    color: Drink.getColorForType(type),
+                                    color: color,
                                     minHeight: 8,
                                   ),
                                 ),
@@ -799,6 +1047,112 @@ class _StatsScreenState extends State<StatsScreen> {
                             ),
                           );
                         }).toList(),
+                      ],
+                    ),
+                  ),
+
+                // Location Distribution (conditionally shown if location data exists)
+                if (_hasLocationData)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _cardColor,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _cardBorderColor,
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Top Locations 📍',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        ..._topLocations.entries
+                            .toList()
+                            .map((entry) {
+                          final location = entry.key;
+                          final count = entry.value;
+                          final percentage = count / _filteredDrinks.where(
+                                  (drink) => drink.location != null && drink.location!.isNotEmpty
+                          ).length * 100;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Column(
+                              crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      CupertinoIcons.location_fill,
+                                      size: 16,
+                                      color: Color(0xFF007AFF),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        location,
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.white,
+                                          decoration: TextDecoration.none,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '$count (${percentage.round()}%)',
+                                      style: const TextStyle(
+                                        color: Color(0xFF007AFF),
+                                        fontWeight: FontWeight.bold,
+                                        decoration: TextDecoration.none,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: percentage / 100,
+                                    backgroundColor: const Color(0xFF333333),
+                                    color: const Color(0xFF007AFF),
+                                    minHeight: 8,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+
+                        // Add a message for the case with few locations
+                        if (_topLocations.length == 1)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8),
+                            child: Text(
+                              "Keep tracking more locations to see your patterns!",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontStyle: FontStyle.italic,
+                                color: Color(0xFF888888),
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -827,6 +1181,7 @@ class _StatsScreenState extends State<StatsScreen> {
                               fontSize: 17,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,
+                              decoration: TextDecoration.none,
                             ),
                           ),
                           const Spacer(),
@@ -860,6 +1215,7 @@ class _StatsScreenState extends State<StatsScreen> {
           'No data for selected time range',
           style: TextStyle(
             color: Color(0xFF888888),
+            decoration: TextDecoration.none,
           ),
         ),
       );
@@ -917,6 +1273,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     fontSize: 9,
                     color: value > 0 ? _chartBarColor : Colors.transparent,
                     fontWeight: FontWeight.bold,
+                    decoration: TextDecoration.none,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -941,6 +1298,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     style: const TextStyle(
                       fontSize: 9,
                       color: Color(0xFF888888),
+                      decoration: TextDecoration.none,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -960,30 +1318,6 @@ class _StatsScreenState extends State<StatsScreen> {
     }
 
     return label;
-  }
-
-  String _getChartTitle(String metric) {
-    String timeRange;
-    switch (_selectedTimeRange) {
-      case TimeRange.week:
-        timeRange = 'Past 7 Days';
-        break;
-      case TimeRange.month:
-        timeRange = 'Past Month (Weekly)';
-        break;
-      case TimeRange.threeMonths:
-        timeRange = 'Past 3 Months (Weekly)';
-        break;
-      case TimeRange.year:
-        timeRange = 'Past Year (Monthly)';
-        break;
-      case TimeRange.allTime:
-        timeRange = 'All Time (Monthly)';
-        break;
-    }
-
-    final emoji = metric == 'Drinks' ? '📈' : '💰';
-    return '$metric by $timeRange $emoji';
   }
 
   Widget _buildHealthTips() {
@@ -1036,6 +1370,7 @@ class _StatsScreenState extends State<StatsScreen> {
               style: TextStyle(
                 color: tipColor,
                 fontWeight: FontWeight.w500,
+                decoration: TextDecoration.none,
               ),
             ),
           ),
@@ -1054,16 +1389,31 @@ class _StatsScreenState extends State<StatsScreen> {
             SizedBox(height: 12),
             Text(
               'Low-risk drinking guidelines recommend:',
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                decoration: TextDecoration.none,
+              ),
             ),
             SizedBox(height: 8),
-            Text('• No more than 2 standard drinks per day'),
-            Text('• No more than 10 standard drinks per week'),
-            Text('• Several alcohol-free days per week'),
+            Text(
+              '• No more than 2 standard drinks per day',
+              style: TextStyle(decoration: TextDecoration.none),
+            ),
+            Text(
+              '• No more than 10 standard drinks per week',
+              style: TextStyle(decoration: TextDecoration.none),
+            ),
+            Text(
+              '• Several alcohol-free days per week',
+              style: TextStyle(decoration: TextDecoration.none),
+            ),
             SizedBox(height: 12),
             Text(
               'Remember that these are guidelines only. The safest option is to not drink alcohol at all.',
-              style: TextStyle(fontStyle: FontStyle.italic),
+              style: TextStyle(
+                fontStyle: FontStyle.italic,
+                decoration: TextDecoration.none,
+              ),
             ),
           ],
         ),
@@ -1098,7 +1448,10 @@ class _StatTile extends StatelessWidget {
         children: [
           Text(
             emoji,
-            style: const TextStyle(fontSize: 28),
+            style: const TextStyle(
+              fontSize: 28,
+              decoration: TextDecoration.none,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -1106,6 +1459,7 @@ class _StatTile extends StatelessWidget {
             style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF888888),
+              decoration: TextDecoration.none,
             ),
           ),
           const SizedBox(height: 4),
@@ -1115,6 +1469,7 @@ class _StatTile extends StatelessWidget {
               fontSize: isTextValue ? 16 : 20,
               fontWeight: FontWeight.bold,
               color: const Color(0xFF007AFF), // iOS blue
+              decoration: TextDecoration.none,
             ),
           ),
         ],

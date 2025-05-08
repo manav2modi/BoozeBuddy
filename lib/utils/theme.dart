@@ -163,3 +163,12 @@ class AppTheme {
     );
   }
 }
+
+extension TextStyleExtensions on TextStyle {
+  TextStyle get noUnderline => copyWith(
+    decoration: TextDecoration.none,
+    decorationColor: null,
+    decorationStyle: null,
+    decorationThickness: 0,
+  );
+}

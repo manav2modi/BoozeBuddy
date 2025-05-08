@@ -15,6 +15,7 @@ dependencies:
   shared_preferences: ^2.1.1
   uuid: ^3.0.7
   intl: ^0.18.1
+  flutter_launcher_icons: ^0.14.3
 
 dev_dependencies:
   flutter_test:
@@ -25,7 +26,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/main_logo.png
     - assets/images/logo.png
 
   fonts:
@@ -38,3 +38,9 @@ flutter:
           weight: 600
         - asset: assets/fonts/Poppins-Bold.ttf
           weight: 700
+
+flutter_launcher_icons:
+  ios: true
+  android: true
+  image_path: "assets/images/logo.png"
+  remove_alpha_ios: true

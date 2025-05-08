@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../services/settings_service.dart';
+import 'custom_drinks_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -123,6 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
+                          decoration: TextDecoration.none,
                         ),
                       ),
                     );
@@ -183,6 +185,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         color: CupertinoColors.activeBlue,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.none,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -196,11 +199,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: _showCurrencyPicker,
               ),
 
+            _buildSectionHeader('Customization'),
+            _buildSettingItem(
+              title: 'Custom Drinks',
+              subtitle: 'Create and manage your own drink types',
+              trailing: const Icon(
+                CupertinoIcons.chevron_right,
+                color: Color(0xFF888888),
+                size: 20,
+              ),
+              onTap: () {
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (context) => const CustomDrinksScreen(),
+                  ),
+                );
+              },
+            ),
+
             // About Section
             _buildSectionHeader('About'),
             _buildSettingItem(
               title: 'Version',
-              subtitle: 'SipTrack 1.0.0',
+              subtitle: 'BoozeBuddy 1.0.0',
             ),
             _buildSettingItem(
               title: 'Made with',
@@ -221,6 +242,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           color: CupertinoColors.activeBlue,
           fontSize: 14,
           fontWeight: FontWeight.w500,
+          decoration: TextDecoration.none,
         ),
       ),
     );
@@ -249,6 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: Colors.white,
                       fontSize: 17,
                       fontWeight: FontWeight.w500,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -257,6 +280,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: const TextStyle(
                       color: Color(0xFF888888),
                       fontSize: 14,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                 ],
