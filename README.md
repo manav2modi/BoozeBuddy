@@ -1,4 +1,4 @@
-# drinkup
+# Sip Tracker
 
 A new Flutter project.
 
