@@ -5,6 +5,9 @@ import '../models/custom_drink.dart';
 import '../services/custom_drinks_service.dart';
 import '../widgets/custom_drinks/custom_drink_item.dart';
 import '../widgets/custom_drinks/custom_drink_dialog.dart';
+import '../utils/theme.dart';
+import '../widgets/common/gradient_button.dart';
+import '../widgets/common/empty_state.dart';
 
 class CustomDrinksScreen extends StatefulWidget {
   const CustomDrinksScreen({Key? key}) : super(key: key);
@@ -17,11 +20,6 @@ class _CustomDrinksScreenState extends State<CustomDrinksScreen> {
   final CustomDrinksService _customDrinksService = CustomDrinksService();
   List<CustomDrink> _customDrinks = [];
   bool _isLoading = true;
-
-  // Colors for dark theme
-  static const Color _backgroundColor = Color(0xFF121212);
-  static const Color _cardColor = Color(0xFF222222);
-  static const Color _accentColor = Color(0xFF007AFF); // iOS blue
 
   @override
   void initState() {
@@ -143,16 +141,16 @@ class _CustomDrinksScreenState extends State<CustomDrinksScreen> {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: _backgroundColor,
-      navigationBar: const CupertinoNavigationBar(
-        backgroundColor: Color(0xFF222222),
-        border: Border(
+      backgroundColor: AppTheme.backgroundColor,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: AppTheme.cardColor,
+        border: const Border(
           bottom: BorderSide(
             color: Color(0xFF333333),
             width: 0.5,
           ),
         ),
-        middle: Text('Custom Drinks'),
+        middle: const Text('Custom Drinks'),
       ),
       child: SafeArea(
         child: _isLoading
@@ -161,45 +159,7 @@ class _CustomDrinksScreenState extends State<CustomDrinksScreen> {
           children: [
             Expanded(
               child: _customDrinks.isEmpty
-                  ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      CupertinoIcons.square_list,
-                      size: 72,
-                      color: Color(0xFF555555),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "No custom drinks yet",
-                      style: TextStyle(
-                        color: Color(0xFF888888),
-                        fontSize: 16,
-                        decoration: TextDecoration.none,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Add your favorites to track them easily",
-                      style: TextStyle(
-                        color: Color(0xFF666666),
-                        fontSize: 14,
-                        decoration: TextDecoration.none,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    CupertinoButton.filled(
-                      child: const Text("Create Custom Drink",
-                        style: TextStyle(
-                          decoration: TextDecoration.none,
-                        ),
-                      ),
-                      onPressed: () => _showAddEditCustomDrinkDialog(),
-                    ),
-                  ],
-                ),
-              )
+                  ? _buildEmptyState()
                   : ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: _customDrinks.length,
@@ -215,8 +175,66 @@ class _CustomDrinksScreenState extends State<CustomDrinksScreen> {
                 },
               ),
             ),
+            // Add button with fixed styling for when custom drinks exist
+            if (_customDrinks.isNotEmpty)
+              _buildAddButton(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            CupertinoIcons.lab_flask,
+            size: 72,
+            color: AppTheme.primaryColor,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "No custom drinks yet",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              decoration: TextDecoration.none,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              "Create your own special drinks with custom names, colors, and emojis",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFFAAAAAA),
+                fontSize: 16,
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          GradientButton(
+            text: "Create Custom Drink",
+            emoji: "🧪",
+            onPressed: () => _showAddEditCustomDrinkDialog(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddButton() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: GradientButton(
+        text: 'Add New Custom Drink',
+        emoji: '➕',
+        onPressed: () => _showAddEditCustomDrinkDialog(),
       ),
     );
   }

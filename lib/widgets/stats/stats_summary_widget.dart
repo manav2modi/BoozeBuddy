@@ -1,16 +1,15 @@
-// lib/widgets/stats/stats_summary_widget.dart
+// lib/widgets/stats/stats_summary_widget.dart - Modified version
 import 'package:flutter/material.dart';
 import '../../screens/stats_screen.dart';
 import '../../services/stats_data_service.dart';
+import '../../widgets/common/fun_card.dart'; // Add this import
+import '../../utils/theme.dart'; // Add this import
 
 class StatsSummaryWidget extends StatelessWidget {
   final StatsDataService dataService;
   final TimeRange selectedTimeRange;
   final bool costTrackingEnabled;
   final String currencySymbol;
-
-  static const Color _cardColor = Color(0xFF222222);
-  static const Color _cardBorderColor = Color(0xFF333333);
 
   const StatsSummaryWidget({
     Key? key,
@@ -42,29 +41,39 @@ class StatsSummaryWidget extends StatelessWidget {
     final totalCost = dataService.totalCost(selectedTimeRange);
     final averageCostPerDrink = dataService.averageCostPerDrink(selectedTimeRange);
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
+    // Using FunCard instead of plain Container
+    return FunCard(
+      color: AppTheme.cardColor,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _cardColor,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: _cardBorderColor,
-          width: 1,
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Summary 📊',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-              decoration: TextDecoration.none,
-            ),
+          Row(
+            children: [
+              const Text(
+                'Summary 📊',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              const Spacer(),
+              // Adding a subtle animation for the summary icon
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: 1),
+                duration: const Duration(seconds: 1),
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: 0.9 + (value * 0.1), // Subtle pulse
+                    child: const Icon(
+                      Icons.insights,
+                      color: AppTheme.primaryColor,
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Row(
@@ -112,7 +121,20 @@ class StatsSummaryWidget extends StatelessWidget {
           // Cost summary (conditional)
           if (costTrackingEnabled && totalCost > 0) ...[
             const SizedBox(height: 16),
-            const Divider(color: Color(0xFF333333)),
+            Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    AppTheme.dividerColor,
+                    AppTheme.dividerColor,
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.2, 0.8, 1.0],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             const Text(
               'Cost Summary 💰',
@@ -120,7 +142,6 @@ class StatsSummaryWidget extends StatelessWidget {
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
-                decoration: TextDecoration.none,
               ),
             ),
             const SizedBox(height: 16),
@@ -152,6 +173,7 @@ class StatsSummaryWidget extends StatelessWidget {
   }
 }
 
+// Animated _StatTile widget
 class _StatTile extends StatelessWidget {
   final String emoji;
   final String title;
@@ -168,35 +190,44 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Column(
-        children: [
-          Text(
-            emoji,
-            style: const TextStyle(
-              fontSize: 28,
-              decoration: TextDecoration.none,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 800),
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value,
+            child: Transform.translate(
+              offset: Offset(0, (1 - value) * 10),
+              child: Column(
+                children: [
+                  Text(
+                    emoji,
+                    style: const TextStyle(
+                      fontSize: 28,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF888888),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    this.value,
+                    style: TextStyle(
+                      fontSize: isTextValue ? 16 : 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF888888),
-              decoration: TextDecoration.none,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isTextValue ? 16 : 20,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF007AFF), // iOS blue
-              decoration: TextDecoration.none,
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

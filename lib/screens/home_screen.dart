@@ -3,12 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import '../models/drink.dart';
+import '../models/custom_drink.dart';
 import '../services/storage_service.dart';
 import '../services/settings_service.dart';
+import '../services/custom_drinks_service.dart';
 import './add_drink_screen.dart';
 import './stats_screen.dart';
 import './settings_screen.dart';
 import '../widgets/drink_card.dart';
+import '../utils/theme.dart';
+
+// Import our new widgets
+import '../widgets/common/fun_header.dart';
+import '../widgets/common/fun_card.dart';
+import '../widgets/common/gradient_button.dart';
+import '../widgets/common/empty_state.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -20,19 +29,16 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final StorageService _storageService = StorageService();
   final SettingsService _settingsService = SettingsService();
+  final CustomDrinksService _customDrinksService = CustomDrinksService();
+
   late TabController _tabController;
   DateTime _selectedDate = DateTime.now();
   List<Drink> _drinks = [];
+  Map<String, CustomDrink> _customDrinksMap = {};
   bool _isLoading = true;
+  bool _loadingCustomDrinks = true;
   int _currentTabIndex = 0;
   bool _costTrackingEnabled = false;
-
-  // Colors for dark theme
-  static const Color _backgroundColor = Color(0xFF121212);
-  static const Color _cardColor = Color(0xFF222222);
-  static const Color _accentColor = Color(0xFF007AFF); // iOS blue
-  static const Color _cardBorderColor = Color(0xFF333333);
-  static const Color _textSecondaryColor = Color(0xFF888888);
 
   @override
   void initState() {
@@ -47,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     });
     _loadSettings();
     _loadDrinks();
+    _loadCustomDrinks();
   }
 
   Future<void> _loadSettings() async {
@@ -54,6 +61,33 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     setState(() {
       _costTrackingEnabled = costTrackingEnabled;
     });
+  }
+
+  Future<void> _loadCustomDrinks() async {
+    setState(() {
+      _loadingCustomDrinks = true;
+    });
+
+    try {
+      final customDrinks = await _customDrinksService.getCustomDrinks();
+
+      // Create a map of custom drinks for quick lookup by ID
+      Map<String, CustomDrink> customDrinksMap = {};
+      for (var drink in customDrinks) {
+        customDrinksMap[drink.id] = drink;
+      }
+
+      setState(() {
+        _customDrinksMap = customDrinksMap;
+        _loadingCustomDrinks = false;
+      });
+    } catch (e) {
+      print('Error loading custom drinks: $e');
+      setState(() {
+        _customDrinksMap = {};
+        _loadingCustomDrinks = false;
+      });
+    }
   }
 
   @override
@@ -94,15 +128,91 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _selectDate(BuildContext context) async {
-    // iOS style date picker
+    // Determine if we should show animation based on when the date was selected
+    final isToday = _selectedDate.year == DateTime.now().year &&
+        _selectedDate.month == DateTime.now().month &&
+        _selectedDate.day == DateTime.now().day;
+
+    final isYesterday = _selectedDate.year == DateTime.now().subtract(const Duration(days: 1)).year &&
+        _selectedDate.month == DateTime.now().subtract(const Duration(days: 1)).month &&
+        _selectedDate.day == DateTime.now().subtract(const Duration(days: 1)).day;
+
+    // Different greeting based on date
+    String dateGreeting;
+    String dateEmoji;
+
+    if (isToday) {
+      dateGreeting = "Viewing today's drinks";
+      dateEmoji = "🍻";
+    } else if (isYesterday) {
+      dateGreeting = "Checking yesterday's drinks";
+      dateEmoji = "⏰";
+    } else {
+      dateGreeting = "Looking at past drinks";
+      dateEmoji = "📆";
+    }
+
+    // iOS style date picker with fun header
     showCupertinoModalPopup(
         context: context,
         builder: (BuildContext context) {
           return Container(
-            height: 300,
-            color: const Color(0xFF2C2C2C),
+            height: 360, // Taller for the header
+            decoration: BoxDecoration(
+              color: const Color(0xFF2C2C2C),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                )
+              ],
+            ),
             child: Column(
               children: [
+                // Fun header with greeting
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppTheme.secondaryColor.withOpacity(0.3),
+                        AppTheme.primaryColor.withOpacity(0.3),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        dateEmoji,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        dateGreeting,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 Container(
                   height: 44,
                   color: const Color(0xFF2C2C2C),
@@ -110,13 +220,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       CupertinoButton(
-                        child: const Text('Cancel'),
+                        child: const Text('Cancel',
+                          style: TextStyle(
+                            color: AppTheme.secondaryColor,
+                          ),
+                        ),
                         onPressed: () {
                           Navigator.of(context).pop();
                         },
                       ),
                       CupertinoButton(
-                        child: const Text('Done'),
+                        child: const Text('Done',
+                          style: TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         onPressed: () {
                           Navigator.of(context).pop();
                           _loadDrinks();
@@ -130,7 +249,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   child: CupertinoTheme(
                     data: const CupertinoThemeData(
                       brightness: Brightness.dark,
-                      primaryColor: _accentColor,
+                      primaryColor: AppTheme.primaryColor,
                     ),
                     child: CupertinoDatePicker(
                       mode: CupertinoDatePickerMode.date,
@@ -187,177 +306,63 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _loadDrinks();
   }
 
+  void _onDateChanged(DateTime newDate) {
+    setState(() {
+      _selectedDate = newDate;
+      _loadDrinks();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _backgroundColor,
+      backgroundColor: AppTheme.backgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            // App bar
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: _cardColor,
-                border: Border(
-                  bottom: BorderSide(
-                    color: _cardBorderColor,
-                    width: 0.5,
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Text(
-                    'BoozeBuddy 🍻',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  // Image.asset(
-                  //   'assets/images/logo.png',
-                  //   height: 40,            // adjust to fit your AppBar
-                  //   fit: BoxFit.contain,
-                  // ),
-                  const Spacer(),
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    child: Text(
-                      DateFormat('MMM d').format(_selectedDate),
-                      style: const TextStyle(color: _accentColor),
-                    ),
-                    onPressed: () => _selectDate(context),
-                  ),
-                  const SizedBox(width: 8),
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    child: const Icon(
-                      CupertinoIcons.settings,
-                      color: _accentColor,
-                      size: 24,
-                    ),
-                    onPressed: _navigateToSettings,
-                  ),
-                ],
-              ),
+            // Updated Fun Header
+            FunHeader(
+              selectedDate: _selectedDate,
+              onDateTap: () => _selectDate(context),
+              onSettingsTap: _navigateToSettings,
+              totalDrinks: _totalStandardDrinks,
+              onDateChange: _onDateChanged,
             ),
 
-            // Stats summary
+            // Improved Tab Bar with gradient indicator
             Container(
-              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _cardColor,
-                border: Border(
-                  bottom: BorderSide(
-                    color: _cardBorderColor,
-                    width: 0.5,
-                  ),
+                color: const Color(0xFF333333),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: CupertinoSlidingSegmentedControl<int>(
+                  backgroundColor: const Color(0xFF333333),
+                  thumbColor: const Color(0xFF444444),
+                  groupValue: _currentTabIndex,
+                  children: {
+                    0: _buildTabItem(
+                      icon: CupertinoIcons.list_bullet,
+                      text: 'Drinks',
+                      isSelected: _currentTabIndex == 0,
+                    ),
+                    1: _buildTabItem(
+                      icon: CupertinoIcons.chart_bar_fill,
+                      text: 'Stats',
+                      isSelected: _currentTabIndex == 1,
+                    ),
+                  },
+                  onValueChanged: (int? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _currentTabIndex = newValue;
+                        _tabController.animateTo(newValue);
+                      });
+                    }
+                  },
                 ),
-              ),
-              child: Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Today\'s Total:',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
-                      if (_costTrackingEnabled && _totalCost > 0) ...[
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Text(
-                              'Cost: ',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: _textSecondaryColor,
-                              ),
-                            ),
-                            Text(
-                              _totalCost.toStringAsFixed(2),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: _accentColor,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: _accentColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _accentColor.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text('🥃', style: TextStyle(fontSize: 16)),
-                        const SizedBox(width: 4),
-                        Text(
-                          _totalStandardDrinks.toStringAsFixed(1),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _accentColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Tab bar
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              child: CupertinoSlidingSegmentedControl<int>(
-                backgroundColor: const Color(0xFF333333),
-                thumbColor: const Color(0xFF444444),
-                groupValue: _currentTabIndex,
-                children: const {
-                  0: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: Text(
-                      'Drinks',
-                      style: TextStyle(
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  1: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: Text(
-                      'Stats',
-                      style: TextStyle(
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                },
-                onValueChanged: (int? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _currentTabIndex = newValue;
-                      _tabController.animateTo(newValue);
-                    });
-                  }
-                },
               ),
             ),
 
@@ -366,50 +371,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // Today's Drinks Tab
-                  _isLoading
+                  // Today's Drinks Tab with updated UI
+                  _isLoading || _loadingCustomDrinks
                       ? const Center(child: CupertinoActivityIndicator())
                       : _drinks.isEmpty
-                      ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          CupertinoIcons.tray,
-                          size: 72,
-                          color: Color(0xFF555555),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          "No drinks logged for ${DateFormat('MMM d').format(_selectedDate)}",
-                          style: const TextStyle(
-                            color: Color(0xFF888888),
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        CupertinoButton.filled(
-                          child: const Text("Add Your First Drink"),
-                          onPressed: () => _navigateToAddDrink(),
-                        ),
-                      ],
-                    ),
+                      ? NoDrinksEmptyState(
+                    date: _selectedDate,
+                    onAddDrink: _navigateToAddDrink,
                   )
-                      : ListView.separated(
-                    padding: const EdgeInsets.all(16),
+                      : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _drinks.length,
-                    separatorBuilder: (context, index) => const Divider(color: _cardBorderColor),
                     itemBuilder: (context, index) {
                       final drink = _drinks[index];
-                      return DrinkCard(
-                        drink: drink,
-                        onDelete: () async {
+                      // Use DrinkFunCard for a more engaging look
+                      return DrinkFunCard(
+                        accentColor: _getColorForDrink(drink),
+                        onLongPress: () async {
                           final confirmed = await _showDeleteConfirmation(context);
                           if (confirmed) {
                             await _storageService.deleteDrink(drink.id);
                             _loadDrinks();
                           }
                         },
+                        child: _buildDrinkContent(drink),
                       );
                     },
                   ),
@@ -424,12 +409,268 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
       floatingActionButton: _currentTabIndex == 0
           ? FloatingActionButton(
-        backgroundColor: _accentColor,
+        backgroundColor: AppTheme.primaryColor,
         child: const Icon(CupertinoIcons.add),
         onPressed: _navigateToAddDrink,
       )
           : null,
     );
+  }
+
+  // Helper to build tab items
+  Widget _buildTabItem({
+    required IconData icon,
+    required String text,
+    required bool isSelected,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: isSelected ? AppTheme.primaryColor : Colors.white.withOpacity(0.7),
+            size: 18,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              color: isSelected ? AppTheme.primaryColor : Colors.white.withOpacity(0.7),
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper to build drink card content
+  Widget _buildDrinkContent(Drink drink) {
+    final String emoji = _getEmojiForDrink(drink);
+    final Color color = _getColorForDrink(drink);
+    final String typeString = _getTypeStringForDrink(drink);
+    final timeString = DateFormat('h:mm a').format(drink.timestamp);
+
+    // Format cost if available and cost tracking is enabled
+    final hasCost = _costTrackingEnabled && drink.cost != null;
+    final costString = hasCost ? '\$${drink.cost!.toStringAsFixed(2)}' : null;
+
+    // Check if location is available
+    final hasLocation = drink.location != null && drink.location!.isNotEmpty;
+
+    return Row(
+      children: [
+        // Left part with emoji and drink type
+        Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: color.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              emoji,
+              style: const TextStyle(fontSize: 24),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+
+        // Middle part with details
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                typeString,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    timeString,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF888888),
+                    ),
+                  ),
+                  if (hasCost) ...[
+                    const SizedBox(width: 8),
+                    const Text(
+                      '•',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF888888),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      costString!,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+
+              // Location row
+              if (hasLocation) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      CupertinoIcons.location,
+                      size: 14,
+                      color: color.withOpacity(0.8),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        drink.location!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: color,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              if (drink.note != null && drink.note!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  drink.note!,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF888888),
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+
+        // Right part with standard drinks
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 5,
+          ),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: color.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              const Text(
+                '🥃',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                drink.standardDrinks.toStringAsFixed(1),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Delete button
+        CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () async {
+            final confirmed = await _showDeleteConfirmation(context);
+            if (confirmed) {
+              await _storageService.deleteDrink(drink.id);
+              _loadDrinks();
+            }
+          },
+          child: const Icon(
+            CupertinoIcons.delete,
+            color: Color(0xFF888888),
+            size: 20,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Helper methods to get emoji, color, and type string for a drink
+  String _getEmojiForDrink(Drink drink) {
+    if (drink.type == DrinkType.custom && drink.customDrinkId != null) {
+      final customDrink = _customDrinksMap[drink.customDrinkId];
+      if (customDrink != null) {
+        return customDrink.emoji;
+      }
+    }
+
+    return Drink.getEmojiForType(drink.type);
+  }
+
+  Color _getColorForDrink(Drink drink) {
+    if (drink.type == DrinkType.custom && drink.customDrinkId != null) {
+      final customDrink = _customDrinksMap[drink.customDrinkId];
+      if (customDrink != null) {
+        return customDrink.color;
+      }
+    }
+
+    return Drink.getColorForType(drink.type);
+  }
+
+  String _getTypeStringForDrink(Drink drink) {
+    if (drink.type == DrinkType.custom && drink.customDrinkId != null) {
+      final customDrink = _customDrinksMap[drink.customDrinkId];
+      if (customDrink != null) {
+        return customDrink.name;
+      }
+    }
+
+    // For non-custom drinks, or if custom drink wasn't found
+    switch (drink.type) {
+      case DrinkType.beer:
+        return 'Beer';
+      case DrinkType.wine:
+        return 'Wine';
+      case DrinkType.cocktail:
+        return 'Cocktail';
+      case DrinkType.shot:
+        return 'Shot';
+      case DrinkType.other:
+        return 'Other';
+      case DrinkType.custom:
+        return 'Custom Drink';
+    }
   }
 
   // Create a method to navigate to AddDrinkScreen to avoid duplicated code
@@ -442,6 +683,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     if (result == true) {
       _loadDrinks();
+      // Also reload custom drinks in case any new ones were added
+      _loadCustomDrinks();
     }
   }
 }

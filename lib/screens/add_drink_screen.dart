@@ -10,7 +10,7 @@ import '../services/custom_drinks_service.dart';
 import './custom_drinks_screen.dart';
 import '../widgets/add_drink/drink_type_selector.dart';
 import '../widgets/add_drink/standard_drinks_slider.dart';
-import '../widgets/add_drink/date_selector.dart';
+import '../widgets/add_drink/date_time_selector.dart';
 import '../widgets/add_drink/drink_details_form.dart';
 
 class AddDrinkScreen extends StatefulWidget {
@@ -44,6 +44,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
   bool _showCostField = false;
   bool _loadingCustomDrinks = true;
   int _currentTabIndex = 0;
+  bool _includeTime = false;
 
   // Colors for dark theme
   static const Color _backgroundColor = Color(0xFF121212);
@@ -90,10 +91,22 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
     // Set the default standard drinks based on the selected type
     _standardDrinks = _drinkTypesInfo[_selectedType]!['defaultStandardDrinks'];
 
+    if (widget.selectedDate != null) {
+      _selectedDate = widget.selectedDate;
+    } else {
+      _selectedDate = DateTime.now();
+    }
+
     // Load cost tracking setting
     _loadCostTrackingSetting();
     // Load custom drinks
     _loadCustomDrinks();
+  }
+
+  void _updateIncludeTime(bool value) {
+    setState(() {
+      _includeTime = value;
+    });
   }
 
   void _handleTabChange() {
@@ -340,10 +353,10 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
               ),
 
               // Date Selector
-              DateSelector(
+              DateTimeSelector(
                 selectedDate: _selectedDate,
                 selectedColor: selectedColor,
-                onDateSelected: _updateSelectedDate,
+                onDateTimeSelected: _updateSelectedDate,
               ),
 
               // Form Fields
