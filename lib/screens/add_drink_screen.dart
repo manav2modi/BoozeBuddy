@@ -61,12 +61,12 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
     DrinkType.wine: {
       'name': 'Wine',
       'emoji': '🍷',
-      'defaultStandardDrinks': 1.5,
+      'defaultStandardDrinks': 1.0,
     },
     DrinkType.cocktail: {
       'name': 'Cocktail',
       'emoji': '🍹',
-      'defaultStandardDrinks': 2.0,
+      'defaultStandardDrinks': 1.0,
     },
     DrinkType.shot: {
       'name': 'Shot',

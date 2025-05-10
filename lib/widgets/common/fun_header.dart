@@ -58,7 +58,7 @@ class FunHeader extends StatelessWidget {
               _buildLogo(),
               const Spacer(),
               // Date selector with fun styling
-              _buildDateSelector(),
+              _buildDateSelector(context),
               const SizedBox(width: 8),
               // Settings button
               CupertinoButton(
@@ -182,14 +182,150 @@ class FunHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildDateSelector() {
+  Widget _buildDateSelector(BuildContext context) {
     return SwipeableDateSelector(
       selectedDate: selectedDate,
       onDateChanged: (newDate) {
         // This will need to pass through to HomeScreen
         onDateChange(newDate);
       },
-      onTap: onDateTap,
+      onTap: () => _selectDate(context),
+    );
+  }
+
+  void _selectDate(BuildContext context) {
+    // Determine if we should show animation based on when the date was selected
+    final isToday = selectedDate.year == DateTime.now().year &&
+        selectedDate.month == DateTime.now().month &&
+        selectedDate.day == DateTime.now().day;
+
+    final isYesterday = selectedDate.year == DateTime.now().subtract(const Duration(days: 1)).year &&
+        selectedDate.month == DateTime.now().subtract(const Duration(days: 1)).month &&
+        selectedDate.day == DateTime.now().subtract(const Duration(days: 1)).day;
+
+    // Different greeting based on date
+    String dateGreeting;
+    String dateEmoji;
+
+    if (isToday) {
+      dateGreeting = "Viewing today's drinks";
+      dateEmoji = "🍻";
+    } else if (isYesterday) {
+      dateGreeting = "Checking yesterday's drinks";
+      dateEmoji = "⏰";
+    } else {
+      dateGreeting = "Looking at past drinks";
+      dateEmoji = "📆";
+    }
+
+    // Use our improved date picker approach
+    _showImprovedDatePicker(context, dateGreeting, dateEmoji);
+  }
+
+  // New improved date picker that won't get cut off
+  void _showImprovedDatePicker(BuildContext context, String dateGreeting, String dateEmoji) {
+    DateTime tempSelectedDate = selectedDate;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        top: false, // respect only the bottom inset
+        child: Container(
+          // force full‐width
+          width: MediaQuery.of(ctx).size.width,
+          decoration: const BoxDecoration(
+            color: Color(0xFF2C2C2C),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          // size to contents
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // … your fun header …
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.secondaryColor.withOpacity(0.3),
+                      AppTheme.primaryColor.withOpacity(0.3),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Row(
+                  children: [
+                    Text(dateEmoji, style: const TextStyle(fontSize: 24)),
+                    const SizedBox(width: 12),
+                    Text(
+                      dateGreeting,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // action row with a bit of horizontal padding
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  height: 44,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: const Text('Cancel', style: TextStyle(color: AppTheme.primaryColor)),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: const Text(
+                          'Done',
+                          style: TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        onPressed: () {
+                          onDateChange(tempSelectedDate);
+                          Navigator.of(ctx).pop();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const Divider(height: 0, color: Color(0xFF3D3D3D)),
+
+              // fixed‐height picker
+              SizedBox(
+                height: 216, // the “natural” height of a Cupertino picker
+                child: CupertinoTheme(
+                  data: const CupertinoThemeData(
+                    brightness: Brightness.dark,
+                    primaryColor: AppTheme.primaryColor,
+                  ),
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.date,
+                    initialDateTime: selectedDate,
+                    maximumDate: DateTime.now(),
+                    minimumDate: DateTime.now().subtract(const Duration(days: 365)),
+                    onDateTimeChanged: (newDate) => tempSelectedDate = newDate,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

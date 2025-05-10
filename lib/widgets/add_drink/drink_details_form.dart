@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:sip_track/widgets/location_widget.dart';
 
 class DrinkDetailsForm extends StatelessWidget {
   final TextEditingController locationController;
@@ -40,7 +41,7 @@ class DrinkDetailsForm extends StatelessWidget {
     );
   }
 
-  Widget _buildLocationField() {
+  _buildLocationField() {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -75,37 +76,9 @@ class DrinkDetailsForm extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            CupertinoTextField(
+            LocationAutocompleteField(
               controller: locationController,
-              placeholder: 'e.g. New York, Bar name, etc.',
-              placeholderStyle: const TextStyle(
-                color: Color(0xFF666666),
-                decoration: TextDecoration.none,
-              ),
-              style: const TextStyle(
-                color: Colors.white,
-                decoration: TextDecoration.none,
-              ),
-              prefix: Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: Icon(
-                  CupertinoIcons.location,
-                  color: selectedColor,
-                  size: 20,
-                ),
-              ),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: _textFieldColor,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFF444444),
-                  width: 1,
-                ),
-              ),
-              cursorColor: selectedColor,
-              autocorrect: false,
-              enableSuggestions: true,
+              accentColor: selectedColor,
             ),
           ],
         ),

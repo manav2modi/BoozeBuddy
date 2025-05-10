@@ -1,4 +1,4 @@
-// lib/screens/home_screen.dart
+// lib/screens/home_screen.dart - Modified to include Calendar View
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
@@ -9,11 +9,12 @@ import '../services/settings_service.dart';
 import '../services/custom_drinks_service.dart';
 import './add_drink_screen.dart';
 import './stats_screen.dart';
+import './calendar_screen.dart'; // Add this import for the new calendar screen
 import './settings_screen.dart';
 import '../widgets/drink_card.dart';
 import '../utils/theme.dart';
 
-// Import our new widgets
+// Import our widgets
 import '../widgets/common/fun_header.dart';
 import '../widgets/common/fun_card.dart';
 import '../widgets/common/gradient_button.dart';
@@ -43,7 +44,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    // Update tab controller to include 3 tabs (Drinks, Calendar, Stats)
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {
@@ -353,6 +355,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       text: 'Stats',
                       isSelected: _currentTabIndex == 1,
                     ),
+                    2: _buildTabItem(
+                      icon: CupertinoIcons.calendar,
+                      text: 'Calendar',
+                      isSelected: _currentTabIndex == 2,
+                    ),
                   },
                   onValueChanged: (int? newValue) {
                     if (newValue != null) {
@@ -400,7 +407,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   ),
 
                   // Stats Tab
-                  if (_currentTabIndex == 1) const StatsScreen() else Container(),
+                  const StatsScreen(),
+
+                  // New Calendar Tab
+                  const CalendarScreen(),
+
                 ],
               ),
             ),
@@ -424,7 +435,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     required bool isSelected,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

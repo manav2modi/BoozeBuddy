@@ -1,6 +1,9 @@
 
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:intl/intl.dart';
 import '../../screens/stats_screen.dart';
 import '../../services/stats_data_service.dart';
 import '../../widgets/common/fun_card.dart';
@@ -18,7 +21,7 @@ class DrinkingPatternsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWeekendDrinker = _isWeekendDrinker();
+    final isWeekendDrinker = _calculateIsWeekendDrinker();
     final consistency = _calculateConsistency();
     final drinkingTrend = _calculateTrend();
     final preferredDrinks = _getPreferredDrinks();
@@ -144,20 +147,140 @@ class DrinkingPatternsWidget extends StatelessWidget {
     );
   }
 
-  bool _isWeekendDrinker() {
-    // Implementation would analyze if weekend tracking exceeds weekday tracking
-    // For now using mock value
-    return true;
+  // Updated to analyze actual data
+  bool _calculateIsWeekendDrinker() {
+    final filteredDrinks = dataService.getFilteredDrinks(selectedTimeRange);
+
+    if (filteredDrinks.isEmpty) return false;
+
+    // Count drinks by day of week (1-7, where 6 and 7 are weekend)
+    Map<int, double> drinksByDay = {};
+    for (int i = 1; i <= 7; i++) {
+      drinksByDay[i] = 0;
+    }
+
+    // Sum up standard drinks for each day of week
+    for (final drink in filteredDrinks) {
+      final dayOfWeek = drink.timestamp.weekday;
+      drinksByDay[dayOfWeek] = (drinksByDay[dayOfWeek] ?? 0) + drink.standardDrinks;
+    }
+
+    // Calculate weekday and weekend totals
+    final weekdayTotal = drinksByDay[1]! + drinksByDay[2]! +
+        drinksByDay[3]! + drinksByDay[4]! + drinksByDay[5]!;
+    final weekendTotal = drinksByDay[6]! + drinksByDay[7]!;
+
+    // Calculate daily averages (to account for 5 weekdays vs 2 weekend days)
+    final weekdayAverage = weekdayTotal / 5;
+    final weekendAverage = weekendTotal / 2;
+
+    // Consider weekend drinker if weekend average is at least 30% higher
+    return weekendAverage > (weekdayAverage * 1.3);
   }
 
   String _calculateConsistency() {
-    // Neutral language about tracking patterns
-    return 'Your drinking pattern is fairly consistent';
+    final filteredDrinks = dataService.getFilteredDrinks(selectedTimeRange);
+
+    if (filteredDrinks.isEmpty) return 'Not enough data yet';
+
+    // Group drinks by day
+    Map<String, double> drinksByDay = {};
+    for (final drink in filteredDrinks) {
+      final dateString = DateFormat('yyyy-MM-dd').format(drink.timestamp);
+      drinksByDay[dateString] = (drinksByDay[dateString] ?? 0) + drink.standardDrinks;
+    }
+
+    // Calculate standard deviation of daily drinks
+    if (drinksByDay.length < 3) return 'Need more data for pattern analysis';
+
+    final values = drinksByDay.values.toList();
+    final mean = values.reduce((a, b) => a + b) / values.length;
+
+    double squaredDiffSum = 0;
+    for (final value in values) {
+      squaredDiffSum += pow(value - mean, 2);
+    }
+
+    final stdDev = sqrt(squaredDiffSum / values.length);
+    final coefficientOfVariation = stdDev / mean;
+
+    // Interpret the coefficient of variation
+    if (coefficientOfVariation < 0.3) {
+      return 'Your drinking pattern is very consistent';
+    } else if (coefficientOfVariation < 0.6) {
+      return 'Your drinking pattern is fairly consistent';
+    } else if (coefficientOfVariation < 1.0) {
+      return 'Your drinking varies from day to day';
+    } else {
+      return 'Your drinking pattern is highly variable';
+    }
   }
 
   String _calculateTrend() {
-    // Neutral language about tracking trends
-    return 'Your consumption is slightly decreasing';
+    final filteredDrinks = dataService.getFilteredDrinks(selectedTimeRange);
+
+    if (filteredDrinks.isEmpty || filteredDrinks.length < 5) {
+      return 'Need more data for trend analysis';
+    }
+
+    // Group drinks by day
+    Map<DateTime, double> drinksByDay = {};
+    for (final drink in filteredDrinks) {
+      // Normalize to start of day
+      final day = DateTime(drink.timestamp.year, drink.timestamp.month, drink.timestamp.day);
+      drinksByDay[day] = (drinksByDay[day] ?? 0) + drink.standardDrinks;
+    }
+
+    // Sort days chronologically
+    final sortedDays = drinksByDay.keys.toList()..sort();
+
+    // Not enough days for trend analysis
+    if (sortedDays.length < 5) return 'Need more days for trend analysis';
+
+    // Simple linear regression to determine trend
+    double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    final n = sortedDays.length;
+
+    // Convert dates to numerical X values (days since first date)
+    final firstDay = sortedDays.first;
+    List<int> xValues = [];
+    List<double> yValues = [];
+
+    for (final day in sortedDays) {
+      final x = day.difference(firstDay).inDays;
+      final y = drinksByDay[day]!;
+
+      xValues.add(x);
+      yValues.add(y);
+
+      sumX += x;
+      sumY += y;
+      sumXY += x * y;
+      sumX2 += x * x;
+    }
+
+    // Calculate slope of the line (positive = increasing, negative = decreasing)
+    final slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+
+    // Interpret the slope relative to the average consumption
+    final avgY = sumY / n;
+    final relativeSlope = slope / avgY;
+
+    if (relativeSlope.abs() < 0.01) {
+      return 'Your consumption is stable';
+    } else if (relativeSlope > 0) {
+      if (relativeSlope > 0.03) {
+        return 'Your consumption is rapidly increasing';
+      } else {
+        return 'Your consumption is slightly increasing';
+      }
+    } else {
+      if (relativeSlope < -0.03) {
+        return 'Your consumption is rapidly decreasing';
+      } else {
+        return 'Your consumption is slightly decreasing';
+      }
+    }
   }
 
   String _getPreferredDrinks() {
