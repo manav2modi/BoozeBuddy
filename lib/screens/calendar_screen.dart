@@ -425,162 +425,185 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   // Individual drink item for the list
+  // Update the _buildDrinkItem method in the CalendarScreen class
+
   Widget _buildDrinkItem(Drink drink) {
-    final String typeString = _getTypeStringForDrink(drink);
     final String emoji = _getEmojiForDrink(drink);
     final Color color = _getColorForDrink(drink);
+    final String typeString = _getTypeStringForDrink(drink);
     final timeString = DateFormat('h:mm a').format(drink.timestamp);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border(
-            left: BorderSide(
-              color: color,
-              width: 4,
+      child: GestureDetector(
+        onTap: () => _navigateToEditDrink(drink), // Add edit on tap
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border(
+              left: BorderSide(
+                color: color,
+                width: 4,
+              ),
             ),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Left part with emoji
-              Container(
-                width: 45,
-                height: 45,
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: color.withOpacity(0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    emoji,
-                    style: const TextStyle(fontSize: 22),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              // Middle part with details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      typeString,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                // Left part with emoji
+                Container(
+                  width: 45,
+                  height: 45,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: color.withOpacity(0.3),
+                      width: 1,
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text(
-                          timeString,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF888888),
-                          ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      emoji,
+                      style: const TextStyle(fontSize: 22),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Middle part with details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        typeString,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
-                        if (drink.cost != null) ...[
-                          const SizedBox(width: 8),
-                          const Text(
-                            '•',
-                            style: TextStyle(
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            timeString,
+                            style: const TextStyle(
                               fontSize: 13,
                               color: Color(0xFF888888),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '\$${drink.cost!.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: color,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-
-                    // Location row
-                    if (drink.location != null && drink.location!.isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Row(
-                        children: [
-                          Icon(
-                            CupertinoIcons.location,
-                            size: 12,
-                            color: color.withOpacity(0.8),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              drink.location!,
+                          if (drink.cost != null) ...[
+                            const SizedBox(width: 8),
+                            const Text(
+                              '•',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: color,
-                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF888888),
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '\$${drink.cost!.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: color,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
-                    ],
-                  ],
-                ),
-              ),
 
-              // Right part with standard drinks
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: color.withOpacity(0.3),
-                    width: 1,
+                      // Location row
+                      if (drink.location != null && drink.location!.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(
+                              CupertinoIcons.location,
+                              size: 12,
+                              color: color.withOpacity(0.8),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                drink.location!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: color,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    const Text(
-                      '🥃',
-                      style: TextStyle(fontSize: 13),
+
+                // Right part with standard drinks
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: color.withOpacity(0.3),
+                      width: 1,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      drink.standardDrinks.toStringAsFixed(1),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: color,
+                  ),
+                  child: Row(
+                    children: [
+                      const Text(
+                        '🥃',
+                        style: TextStyle(fontSize: 13),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Text(
+                        drink.standardDrinks.toStringAsFixed(1),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: color,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+// Add this method to the CalendarScreen class
+  Future<void> _navigateToEditDrink(Drink drink) async {
+    Navigator.pop(context); // Close the bottom sheet
+
+    final result = await Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (context) => AddDrinkScreen(
+          selectedDate: drink.timestamp,
+          drinkToEdit: drink,
+        ),
+      ),
+    );
+
+    if (result == true) {
+      _loadData(); // Reload all data to update calendar markers
+    }
   }
 
   // Determine marker color based on number of standard drinks

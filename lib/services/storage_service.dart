@@ -103,6 +103,36 @@ class StorageService {
     }
   }
 
+  // Update an existing drink
+  // Add to lib/services/storage_service.dart
+  Future<bool> updateDrink(Drink updatedDrink) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Get existing drinks
+      List<Drink> drinks = await getDrinks();
+
+      // Find the index of the drink to update
+      final index = drinks.indexWhere((drink) => drink.id == updatedDrink.id);
+
+      if (index != -1) {
+        // Replace the drink at the found index
+        drinks[index] = updatedDrink;
+
+        // Convert to JSON
+        List<String> drinksJson = drinks.map((drink) => jsonEncode(drink.toJson())).toList();
+
+        // Save to storage
+        return await prefs.setStringList(_drinksKey, drinksJson);
+      }
+
+      return false; // Drink not found
+    } catch (e) {
+      print('Error updating drink: $e');
+      return false;
+    }
+  }
+
   // Clear all drinks
   Future<bool> clearAllDrinks() async {
     try {

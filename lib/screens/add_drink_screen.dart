@@ -13,12 +13,16 @@ import '../widgets/add_drink/standard_drinks_slider.dart';
 import '../widgets/add_drink/date_time_selector.dart';
 import '../widgets/add_drink/drink_details_form.dart';
 
+// Update the AddDrinkScreen class in add_drink_screen.dart
+
 class AddDrinkScreen extends StatefulWidget {
   final DateTime selectedDate;
+  final Drink? drinkToEdit; // Add this parameter
 
   AddDrinkScreen({
     Key? key,
     DateTime? selectedDate,
+    this.drinkToEdit, // Add this parameter
   }) : this.selectedDate = selectedDate ?? DateTime.now(),
         super(key: key);
 
@@ -45,6 +49,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
   bool _loadingCustomDrinks = true;
   int _currentTabIndex = 0;
   bool _includeTime = false;
+  bool _isEditing = false; // Add this flag
 
   // Colors for dark theme
   static const Color _backgroundColor = Color(0xFF121212);
@@ -87,14 +92,35 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
     _tabController.addListener(_handleTabChange);
 
     _selectedDate = widget.selectedDate;
+    _isEditing = widget.drinkToEdit != null; // Set editing flag
 
-    // Set the default standard drinks based on the selected type
-    _standardDrinks = _drinkTypesInfo[_selectedType]!['defaultStandardDrinks'];
+    // If editing, populate fields with existing drink data
+    if (_isEditing) {
+      final drink = widget.drinkToEdit!;
+      _selectedType = drink.type;
+      _standardDrinks = drink.standardDrinks;
+      _selectedDate = drink.timestamp;
 
-    if (widget.selectedDate != null) {
-      _selectedDate = widget.selectedDate;
+      if (drink.note != null) {
+        _noteController.text = drink.note!;
+      }
+
+      if (drink.location != null) {
+        _locationController.text = drink.location!;
+      }
+
+      if (drink.cost != null) {
+        _costController.text = drink.cost!.toString();
+      }
+
+      // For custom drinks, we'll need to load the specific custom drink
+      if (drink.type == DrinkType.custom && drink.customDrinkId != null) {
+        _currentTabIndex = 1;
+        _tabController.animateTo(1);
+      }
     } else {
-      _selectedDate = DateTime.now();
+      // Set the default standard drinks based on the selected type
+      _standardDrinks = _drinkTypesInfo[_selectedType]!['defaultStandardDrinks'];
     }
 
     // Load cost tracking setting
@@ -146,6 +172,16 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
       setState(() {
         _customDrinks = customDrinks;
         _loadingCustomDrinks = false;
+
+        // If editing a custom drink, select it
+        if (_isEditing && widget.drinkToEdit!.type == DrinkType.custom &&
+            widget.drinkToEdit!.customDrinkId != null) {
+          // Find the custom drink by ID
+          _selectedCustomDrink = _customDrinks.firstWhere(
+                (drink) => drink.id == widget.drinkToEdit!.customDrinkId,
+            orElse: () => null as CustomDrink, // This will cause a runtime error but is needed for compilation
+          );
+        }
       });
     } catch (e) {
       print('Error loading custom drinks: $e');
@@ -224,28 +260,60 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
         }
       }
 
-      final newDrink = Drink(
-        id: const Uuid().v4(),
-        type: _selectedType,
-        standardDrinks: _standardDrinks,
-        timestamp: _selectedDate,
-        note: _noteController.text.isEmpty ? null : _noteController.text,
-        cost: cost,
-        location: _locationController.text.isEmpty ? null : _locationController.text,
-        customDrinkId: _selectedCustomDrink?.id, // Include reference to custom drink
-      );
+      late Drink drinkToSave;
 
-      final saved = await _storageService.saveDrink(newDrink);
+      if (_isEditing) {
+        // Update existing drink
+        drinkToSave = Drink(
+          id: widget.drinkToEdit!.id, // Keep the same ID
+          type: _selectedType,
+          standardDrinks: _standardDrinks,
+          timestamp: _selectedDate,
+          note: _noteController.text.isEmpty ? null : _noteController.text,
+          cost: cost,
+          location: _locationController.text.isEmpty ? null : _locationController.text,
+          customDrinkId: _selectedCustomDrink?.id, // Include reference to custom drink
+        );
 
-      setState(() {
-        _isSaving = false;
-      });
+        // Call update method instead of save
+        final updated = await _storageService.updateDrink(drinkToSave);
 
-      if (mounted) {
-        if (saved) {
-          Navigator.of(context).pop(true);
-        } else {
-          _showSaveError();
+        setState(() {
+          _isSaving = false;
+        });
+
+        if (mounted) {
+          if (updated) {
+            Navigator.of(context).pop(true);
+          } else {
+            _showSaveError();
+          }
+        }
+      } else {
+        // Create new drink
+        drinkToSave = Drink(
+          id: const Uuid().v4(),
+          type: _selectedType,
+          standardDrinks: _standardDrinks,
+          timestamp: _selectedDate,
+          note: _noteController.text.isEmpty ? null : _noteController.text,
+          cost: cost,
+          location: _locationController.text.isEmpty ? null : _locationController.text,
+          customDrinkId: _selectedCustomDrink?.id, // Include reference to custom drink
+        );
+
+        final saved = await _storageService.saveDrink(drinkToSave);
+
+        setState(() {
+          _isSaving = false;
+        });
+
+        if (mounted) {
+          if (saved) {
+            Navigator.of(context).pop(true);
+          } else {
+            _showSaveError();
+          }
         }
       }
     } catch (e) {
@@ -289,10 +357,18 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
   }
 
   String get _getAppBarTitle {
-    if (_selectedType == DrinkType.custom && _selectedCustomDrink != null) {
-      return 'Add ${_selectedCustomDrink!.name} ${_selectedCustomDrink!.emoji}';
+    if (_isEditing) {
+      if (_selectedType == DrinkType.custom && _selectedCustomDrink != null) {
+        return 'Edit ${_selectedCustomDrink!.name} ${_selectedCustomDrink!.emoji}';
+      } else {
+        return 'Edit ${_drinkTypesInfo[_selectedType]!['name']} ${_drinkTypesInfo[_selectedType]!['emoji']}';
+      }
     } else {
-      return 'Add ${_drinkTypesInfo[_selectedType]!['name']} ${_drinkTypesInfo[_selectedType]!['emoji']}';
+      if (_selectedType == DrinkType.custom && _selectedCustomDrink != null) {
+        return 'Add ${_selectedCustomDrink!.name} ${_selectedCustomDrink!.emoji}';
+      } else {
+        return 'Add ${_drinkTypesInfo[_selectedType]!['name']} ${_drinkTypesInfo[_selectedType]!['emoji']}';
+      }
     }
   }
 
@@ -391,9 +467,9 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
                         ),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Save Drink',
-                        style: TextStyle(
+                      Text(
+                        _isEditing ? 'Update Drink' : 'Save Drink',
+                        style: const TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,

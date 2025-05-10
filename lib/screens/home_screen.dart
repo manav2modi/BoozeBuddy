@@ -65,6 +65,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     });
   }
 
+  Future<void> _navigateToEditDrink(Drink drink) async {
+    final result = await Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (context) => AddDrinkScreen(
+          selectedDate: _selectedDate,
+          drinkToEdit: drink,
+        ),
+      ),
+    );
+
+    if (result == true) {
+      _loadDrinks();
+      // Also reload custom drinks in case any new ones were added
+      _loadCustomDrinks();
+    }
+  }
+
   Future<void> _loadCustomDrinks() async {
     setState(() {
       _loadingCustomDrinks = true;
@@ -391,17 +408,37 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     itemCount: _drinks.length,
                     itemBuilder: (context, index) {
                       final drink = _drinks[index];
-                      // Use DrinkFunCard for a more engaging look
-                      return DrinkFunCard(
-                        accentColor: _getColorForDrink(drink),
-                        onLongPress: () async {
-                          final confirmed = await _showDeleteConfirmation(context);
-                          if (confirmed) {
-                            await _storageService.deleteDrink(drink.id);
-                            _loadDrinks();
-                          }
+                      // Wrap the DrinkFunCard in a Dismissible widget
+                      return Dismissible(
+                        key: Key(drink.id),
+                        direction: DismissDirection.endToStart, // Only allow right-to-left swipe (delete)
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          color: Colors.red,
+                          child: const Icon(
+                            CupertinoIcons.delete,
+                            color: Colors.white,
+                          ),
+                        ),
+                        confirmDismiss: (direction) async {
+                          // Show delete confirmation
+                          return await _showDeleteConfirmation(context);
                         },
-                        child: _buildDrinkContent(drink),
+                        onDismissed: (direction) {
+                          // Delete the drink
+                          _storageService.deleteDrink(drink.id);
+                          _loadDrinks();
+                        },
+                        child: GestureDetector(
+                          // Add tap to edit functionality
+                          onTap: () => _navigateToEditDrink(drink),
+                          child: DrinkFunCard(
+                            accentColor: _getColorForDrink(drink),
+                            onLongPress: null, // Remove this since we're using swipe to delete
+                            child: _buildDrinkContent(drink),
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -613,23 +650,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               ),
             ],
-          ),
-        ),
-
-        // Delete button
-        CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () async {
-            final confirmed = await _showDeleteConfirmation(context);
-            if (confirmed) {
-              await _storageService.deleteDrink(drink.id);
-              _loadDrinks();
-            }
-          },
-          child: const Icon(
-            CupertinoIcons.delete,
-            color: Color(0xFF888888),
-            size: 20,
           ),
         ),
       ],
