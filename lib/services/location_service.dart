@@ -1,3 +1,4 @@
+// lib/services/location_service.dart
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LocationService {
@@ -6,7 +7,25 @@ class LocationService {
   // Get all saved locations
   Future<List<String>> getSavedLocations() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList(_locationsKey) ?? [];
+    List<String> locations = prefs.getStringList(_locationsKey) ?? [];
+
+    // If no saved locations, provide some default ones for better testing
+    if (locations.isEmpty) {
+      locations = [
+        'New York, NY',
+        'Brooklyn Bar',
+        'Home',
+        'The Local Pub',
+        'Manhattan',
+        'Queens',
+        'Bronx',
+        'Friends Home'
+      ];
+      // Save these defaul ts
+      await prefs.setStringList(_locationsKey, locations);
+    }
+
+    return locations;
   }
 
   // Save a new location
@@ -30,6 +49,8 @@ class LocationService {
     if (query.isEmpty) return [];
 
     final locations = await getSavedLocations();
+
+    // Filter locations that contain the query (case insensitive)
     return locations
         .where((location) => location.toLowerCase().contains(query.toLowerCase()))
         .toList();

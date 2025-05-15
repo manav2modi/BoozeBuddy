@@ -1,6 +1,9 @@
 // lib/screens/add_drink_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:sip_track/models/favorite_drink.dart';
+import 'package:sip_track/services/favorite_drink_service.dart';
+import 'package:sip_track/utils/theme.dart';
 import 'package:uuid/uuid.dart';
 import '../models/drink.dart';
 import '../models/custom_drink.dart';
@@ -34,6 +37,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
   final StorageService _storageService = StorageService();
   final SettingsService _settingsService = SettingsService();
   final CustomDrinksService _customDrinksService = CustomDrinksService();
+  final FavoriteDrinkService _favoriteDrinkService = FavoriteDrinkService();
   final _noteController = TextEditingController();
   final _costController = TextEditingController();
   final _locationController = TextEditingController();
@@ -47,7 +51,10 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
   bool _isSaving = false;
   bool _showCostField = false;
   bool _loadingCustomDrinks = true;
+  bool _isLoading = true;
   int _currentTabIndex = 0;
+  List<FavoriteDrink> _favoriteDrinks = [];
+  bool _loadingFavorites = true;
   bool _includeTime = false;
   bool _isEditing = false; // Add this flag
 
@@ -125,8 +132,33 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
 
     // Load cost tracking setting
     _loadCostTrackingSetting();
+    _loadFavoriteDrinks();
     // Load custom drinks
     _loadCustomDrinks();
+  }
+
+  Future<void> _loadFavoriteDrinks() async {
+    setState(() {
+      _loadingFavorites = true;
+      _isLoading = true; // Set loading state
+    });
+
+    try {
+      final favorites = await _favoriteDrinkService.getFavoriteDrinks();
+
+      setState(() {
+        _favoriteDrinks = favorites;
+        _loadingFavorites = false;
+        _isLoading = _loadingCustomDrinks; // Only completely loaded when both are done
+      });
+    } catch (e) {
+      print('Error loading favorite drinks: $e');
+      setState(() {
+        _favoriteDrinks = [];
+        _loadingFavorites = false;
+        _isLoading = _loadingCustomDrinks; // Only completely loaded when both are done
+      });
+    }
   }
 
   void _updateIncludeTime(bool value) {
@@ -165,6 +197,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
   Future<void> _loadCustomDrinks() async {
     setState(() {
       _loadingCustomDrinks = true;
+      _isLoading = true; // Set loading state
     });
 
     try {
@@ -172,6 +205,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
       setState(() {
         _customDrinks = customDrinks;
         _loadingCustomDrinks = false;
+        _isLoading = _loadingFavorites; // Only completely loaded when both are done
 
         // If editing a custom drink, select it
         if (_isEditing && widget.drinkToEdit!.type == DrinkType.custom &&
@@ -179,7 +213,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
           // Find the custom drink by ID
           _selectedCustomDrink = _customDrinks.firstWhere(
                 (drink) => drink.id == widget.drinkToEdit!.customDrinkId,
-            orElse: () => null as CustomDrink, // This will cause a runtime error but is needed for compilation
+            orElse: () => null as CustomDrink,
           );
         }
       });
@@ -188,6 +222,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
       setState(() {
         _customDrinks = [];
         _loadingCustomDrinks = false;
+        _isLoading = _loadingFavorites; // Only completely loaded when both are done
       });
     }
   }
@@ -222,6 +257,209 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
     setState(() {
       _standardDrinks = value;
     });
+  }
+
+  // Add this to AddDrinkScreen as a new method
+  Widget _buildFavoritesSection() {
+    if (_favoriteDrinks.isEmpty) {
+      return const SizedBox.shrink(); // No favorites
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _cardBorderColor,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Favorites',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 120, // Make a bit taller to fit more content
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              itemCount: _favoriteDrinks.length,
+              itemBuilder: (context, index) {
+                final favorite = _favoriteDrinks[index];
+
+                // Create a clearer display name
+                String displayName = favorite.name;
+
+                return GestureDetector(
+                  onTap: () => _selectFavoriteDrink(favorite),
+                  child: Container(
+                    width: 85, // Slightly wider
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF333333),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFF444444),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Emoji
+                        Text(
+                          favorite.emoji,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+
+                        // Name
+                        Text(
+                          displayName,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.none,
+                          ),
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+
+                        // Standard Drinks with Star
+                        Container(
+                          margin: const EdgeInsets.only(top: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: favorite.color.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: favorite.color.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                CupertinoIcons.star_fill,
+                                color: AppTheme.secondaryColor,
+                                size: 10,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                favorite.standardDrinks.toStringAsFixed(1),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: favorite.color,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.none,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Optional: Location hint if available
+                        if (favorite.location != null && favorite.location!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  CupertinoIcons.location,
+                                  color: Colors.grey[400],
+                                  size: 8,
+                                ),
+                                const SizedBox(width: 2),
+                                Flexible(
+                                  child: Text(
+                                    favorite.location!,
+                                    style: TextStyle(
+                                      fontSize: 8,
+                                      color: Colors.grey[400],
+                                      decoration: TextDecoration.none,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8.0,),
+        ],
+      ),
+    );
+  }
+
+// Method to select a favorite drink
+  void _selectFavoriteDrink(FavoriteDrink favorite) {
+    setState(() {
+      _selectedType = favorite.type;
+      _standardDrinks = favorite.standardDrinks;
+
+      if (favorite.type == DrinkType.custom && favorite.customDrinkId != null) {
+        _currentTabIndex = 1; // Switch to custom drinks tab
+        _tabController.animateTo(1);
+
+        // Find and select the custom drink
+        final customDrink = _customDrinks.firstWhere(
+              (drink) => drink.id == favorite.customDrinkId,
+          orElse: () => null as CustomDrink, // For compilation
+        );
+
+        if (customDrink != null) {
+          _selectedCustomDrink = customDrink;
+        }
+      }
+
+      // Pre-fill optional fields if they exist
+      if (favorite.note != null) {
+        _noteController.text = favorite.note!;
+      }
+
+      if (favorite.location != null) {
+        _locationController.text = favorite.location!;
+      }
+
+      if (favorite.cost != null) {
+        _costController.text = favorite.cost!.toString();
+      }
+    });
+
+    // Show a success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added ${favorite.name} from favorites'),
+        duration: Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _updateSelectedDate(DateTime date) {
@@ -407,6 +645,7 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              if (!_isLoading) _buildFavoritesSection(),
               // Drink Type Selector
               DrinkTypeSelector(
                 currentTabIndex: _currentTabIndex,

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
+import 'package:sip_track/screens/citations_screen.dart';
 import '../../screens/stats_screen.dart';
 import '../../services/stats_data_service.dart';
 import '../../widgets/common/fun_card.dart';
@@ -32,9 +33,9 @@ class DrinkingPatternsWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Text(
+              const Text(
                 'Drinking Patterns 🧩',
                 style: TextStyle(
                   fontSize: 17,
@@ -42,17 +43,27 @@ class DrinkingPatternsWidget extends StatelessWidget {
                   color: Colors.white,
                 ),
               ),
-              Spacer(),
-              Icon(
+              const Spacer(),
+              const Icon(
                 CupertinoIcons.chart_bar_alt_fill,
                 color: AppTheme.secondaryColor,
                 size: 18,
+              ),
+              // Add info button to show citation dialog
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => _showPatternsInfoDialog(context),
+                child: const Icon(
+                  CupertinoIcons.info_circle,
+                  color: Color(0xFF888888),
+                  size: 16,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
 
-          // Pattern insights - removed sober days, fixed overflow
+          // Pattern insights (rest of the widget remains the same)
           _buildPatternInsight(
             icon: CupertinoIcons.calendar,
             color: AppTheme.secondaryColor,
@@ -86,6 +97,93 @@ class DrinkingPatternsWidget extends StatelessWidget {
             title: 'Preferred Drinks',
             description: preferredDrinks,
             isLast: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPatternsInfoDialog(BuildContext context) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('About Drinking Patterns'),
+        content: Column(
+          children: [
+            const SizedBox(height: 12),
+            const Text(
+              'The drinking pattern analysis is based on your logged data and general guidelines about alcohol consumption patterns.',
+              style: TextStyle(
+                fontSize: 14,
+                decoration: TextDecoration.none,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Sources:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                decoration: TextDecoration.none,
+              ),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (context) => const CitationsScreen(),
+                  ),
+                );
+              },
+              child: const Text(
+                "National Institute on Alcohol Abuse and Alcoholism",
+                style: TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontSize: 13,
+                  decoration: TextDecoration.underline,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 4),
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (context) => const CitationsScreen(),
+                  ),
+                );
+              },
+              child: const Text(
+                "Centers for Disease Control and Prevention",
+                style: TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontSize: 13,
+                  decoration: TextDecoration.underline,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('View All Sources'),
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.of(context).push(
+                CupertinoPageRoute(
+                  builder: (context) => const CitationsScreen(),
+                ),
+              );
+            },
+          ),
+          CupertinoDialogAction(
+            child: const Text('OK'),
+            onPressed: () => Navigator.pop(context),
           ),
         ],
       ),

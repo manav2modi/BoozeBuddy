@@ -1,6 +1,7 @@
 // lib/screens/stats_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:sip_track/models/citation.dart';
 import 'package:sip_track/utils/theme.dart';
 import 'package:sip_track/widgets/common/fun_card.dart';
 import 'package:sip_track/widgets/stats/drinking_patterns_widget.dart';
@@ -12,6 +13,7 @@ import '../widgets/stats/stats_summary_widget.dart';
 import '../widgets/stats/stats_chart_widget.dart';
 import '../widgets/stats/stats_categories_widget.dart';
 import '../services/stats_data_service.dart';
+import 'citations_screen.dart';
 
 enum TimeRange {
   week,
@@ -111,45 +113,79 @@ class _StatsScreenState extends State<StatsScreen> {
     return '$metric by $timeRange $emoji';
   }
 
+  // Modified _showHealthInfoAlert method for stats_screen.dart
   void _showHealthInfoAlert() {
     showCupertinoDialog(
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Drinking Guidelines'),
-        content: const Column(
+        content: Column(
           children: [
-            SizedBox(height: 12),
-            Text(
+            const SizedBox(height: 12),
+            const Text(
               'Low-risk drinking guidelines recommend:',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 decoration: TextDecoration.none,
               ),
             ),
-            SizedBox(height: 8),
-            Text(
+            const SizedBox(height: 8),
+            const Text(
               '• No more than 2 standard drinks per day',
               style: TextStyle(decoration: TextDecoration.none),
             ),
-            Text(
+            const Text(
               '• No more than 10 standard drinks per week',
               style: TextStyle(decoration: TextDecoration.none),
             ),
-            Text(
+            const Text(
               '• Several alcohol-free days per week',
               style: TextStyle(decoration: TextDecoration.none),
             ),
-            SizedBox(height: 12),
-            Text(
+            const SizedBox(height: 12),
+            const Text(
               'Remember that these are guidelines only. The safest option is to not drink alcohol at all.',
               style: TextStyle(
                 fontStyle: FontStyle.italic,
                 decoration: TextDecoration.none,
               ),
             ),
+            const SizedBox(height: 16),
+            const Divider(height: 1, color: Color(0xFF444444)),
+            const SizedBox(height: 12),
+            const Text(
+              'Sources:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                decoration: TextDecoration.none,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildCitationButton(
+                HealthCitations.who.title,
+                    () => _navigateToCitationsScreen()
+            ),
+            const SizedBox(height: 4),
+            _buildCitationButton(
+                HealthCitations.cdc.title,
+                    () => _navigateToCitationsScreen()
+            ),
+            const SizedBox(height: 4),
+            _buildCitationButton(
+                HealthCitations.niaaa.title,
+                    () => _navigateToCitationsScreen()
+            ),
           ],
         ),
         actions: [
+          CupertinoDialogAction(
+            child: const Text('View All Sources'),
+            onPressed: () {
+              Navigator.pop(context);
+              _navigateToCitationsScreen();
+            },
+          ),
           CupertinoDialogAction(
             child: const Text('OK'),
             onPressed: () => Navigator.pop(context),
@@ -159,6 +195,36 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
+// Helper to build citation buttons that navigate to the Citations screen
+  Widget _buildCitationButton(String text, VoidCallback onPressed) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: double.infinity,
+        alignment: Alignment.center,
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: AppTheme.primaryColor,
+            fontSize: 13,
+            decoration: TextDecoration.underline,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+// Method to navigate to Citations screen
+  void _navigateToCitationsScreen() {
+    Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (context) => const CitationsScreen(),
+      ),
+    );
+  }
+
+  // Modified _buildHealthTips method for stats_screen.dart
   Widget _buildHealthTips() {
     final averageDrinksPerDay = _dataService.averageDrinksPerDay(_selectedTimeRange);
     final maxDrinksInOneDay = _dataService.maxDrinksInOneDay(_selectedTimeRange);
@@ -189,36 +255,69 @@ class _StatsScreenState extends State<StatsScreen> {
       }
     }
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: tipColor.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: tipColor.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            CupertinoIcons.lightbulb_fill,
-            color: tipColor,
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              tip,
-              style: TextStyle(
-                color: tipColor,
-                fontWeight: FontWeight.w500,
-                decoration: TextDecoration.none,
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: tipColor.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: tipColor.withOpacity(0.3),
+              width: 1,
             ),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              Icon(
+                CupertinoIcons.lightbulb_fill,
+                color: tipColor,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  tip,
+                  style: TextStyle(
+                    color: tipColor,
+                    fontWeight: FontWeight.w500,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Add citation note below the tips
+        Padding(
+          padding: const EdgeInsets.only(top: 4, left: 4),
+          child: Row(
+            children: [
+              const Icon(
+                CupertinoIcons.info_circle,
+                color: Color(0xFF888888),
+                size: 12,
+              ),
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () {
+                  _showHealthInfoAlert();
+                },
+                child: const Text(
+                  "Based on health guidelines - Tap for sources",
+                  style: TextStyle(
+                    color: Color(0xFF888888),
+                    fontSize: 12,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

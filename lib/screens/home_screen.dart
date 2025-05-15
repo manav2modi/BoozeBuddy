@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
+import 'package:sip_track/models/favorite_drink.dart';
+import 'package:sip_track/services/favorite_drink_service.dart';
 import '../models/drink.dart';
 import '../models/custom_drink.dart';
 import '../services/storage_service.dart';
@@ -31,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   final StorageService _storageService = StorageService();
   final SettingsService _settingsService = SettingsService();
   final CustomDrinksService _customDrinksService = CustomDrinksService();
+  final FavoriteDrinkService _favoriteDrinkService = FavoriteDrinkService();
 
   late TabController _tabController;
   DateTime _selectedDate = DateTime.now();
@@ -40,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   bool _loadingCustomDrinks = true;
   int _currentTabIndex = 0;
   bool _costTrackingEnabled = false;
+  List<FavoriteDrink> _favoriteDrinks = [];
 
   @override
   void initState() {
@@ -55,7 +59,97 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     });
     _loadSettings();
     _loadDrinks();
+    _loadFavoriteDrinks();
     _loadCustomDrinks();
+  }
+
+  // Load favorite drinks
+  Future<void> _loadFavoriteDrinks() async {
+    try {
+      final favorites = await _favoriteDrinkService.getFavoriteDrinks();
+      setState(() {
+        _favoriteDrinks = favorites;
+      });
+    } catch (e) {
+      print('Error loading favorite drinks: $e');
+    }
+  }
+
+  // Helper method to check if a drink is favorited
+  bool _isDrinkFavorited(Drink drink) {
+    return _favoriteDrinks.any((favorite) =>
+    favorite.type == drink.type &&
+        favorite.customDrinkId == drink.customDrinkId &&
+        favorite.standardDrinks == drink.standardDrinks);
+  }
+
+  // Get ID of favorite if it exists
+  String? _getFavoriteId(Drink drink) {
+    final favorite = _favoriteDrinks.firstWhere(
+          (favorite) =>
+      favorite.type == drink.type &&
+          favorite.customDrinkId == drink.customDrinkId &&
+          favorite.standardDrinks == drink.standardDrinks,
+      orElse: () => null as FavoriteDrink,
+    );
+
+    return favorite?.id;
+  }
+
+  // Toggle favorite status
+  Future<void> _toggleFavorite(Drink drink) async {
+    // Check if this exact drink is already a favorite
+    FavoriteDrink? existingFavorite;
+    String? favoriteId;
+
+    // Look for an exact match including standard drinks amount
+    for (var fav in _favoriteDrinks) {
+      if (fav.type == drink.type &&
+          fav.customDrinkId == drink.customDrinkId &&
+          fav.standardDrinks == drink.standardDrinks) {
+        existingFavorite = fav;
+        favoriteId = fav.id;
+        break;
+      }
+    }
+
+    bool success = false;
+    if (existingFavorite != null && favoriteId != null) {
+      // This exact drink is already a favorite - remove it
+      success = await _favoriteDrinkService.removeFavoriteDrink(favoriteId);
+
+      if (success) {
+        // Show feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Removed ${existingFavorite.name} from favorites'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppTheme.primaryColor,
+          ),
+        );
+      }
+    } else {
+      // Add as a new favorite
+      final favoriteToAdd = await _favoriteDrinkService.createFavoriteFromDrink(drink, _customDrinksMap);
+      success = await _favoriteDrinkService.addFavoriteDrink(favoriteToAdd);
+
+      if (success) {
+        // Show feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Added ${favoriteToAdd.name} to favorites'),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppTheme.primaryColor,
+          ),
+        );
+      }
+    }
+
+    if (success) {
+      _loadFavoriteDrinks(); // Reload the favorites list
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -423,13 +517,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                         confirmDismiss: (direction) async {
                           // Show delete confirmation
-                          return await _showDeleteConfirmation(context);
+                          final confirmed = await _showDeleteConfirmation(context);
+                          if (confirmed) {
+                            // Remove item from the data source FIRST
+                            await _storageService.deleteDrink(drink.id);
+
+                            // IMPORTANT: Update the local list immediately to prevent the error
+                            setState(() {
+                              _drinks.removeWhere((item) => item.id == drink.id);
+                            });
+                          }
+                          return confirmed;
                         },
-                        onDismissed: (direction) {
-                          // Delete the drink
-                          _storageService.deleteDrink(drink.id);
-                          _loadDrinks();
-                        },
+                        // Remove the onDismissed callback since we're handling deletion in confirmDismiss
                         child: GestureDetector(
                           // Add tap to edit functionality
                           onTap: () => _navigateToEditDrink(drink),
@@ -500,6 +600,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final Color color = _getColorForDrink(drink);
     final String typeString = _getTypeStringForDrink(drink);
     final timeString = DateFormat('h:mm a').format(drink.timestamp);
+
+    // Check if this drink is a favorite
+    final bool isFavorite = _isDrinkFavorited(drink);
 
     // Format cost if available and cost tracking is enabled
     final hasCost = _costTrackingEnabled && drink.cost != null;
@@ -650,6 +753,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               ),
             ],
+          ),
+        ),
+
+        // Favorite button - for all drinks
+        CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => _toggleFavorite(drink),
+          child: Icon(
+            isFavorite ? CupertinoIcons.star_fill : CupertinoIcons.star,
+            color: isFavorite ? AppTheme.secondaryColor : Color(0xFF888888),
+            size: 22,
           ),
         ),
       ],

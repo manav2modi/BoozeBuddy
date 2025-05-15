@@ -2,7 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import '../services/settings_service.dart';
+import 'citations_screen.dart';
 import 'custom_drinks_screen.dart';
+import 'notification_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -198,6 +200,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 onTap: _showCurrencyPicker,
               ),
+
+            _buildSectionHeader('Notifications'),
+            _buildSettingItem(
+              title: 'Notification Settings',
+              subtitle: 'Manage reminders and alerts',
+              trailing: const Icon(
+                CupertinoIcons.chevron_right,
+                color: Color(0xFF888888),
+                size: 20,
+              ),
+              onTap: () {
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (context) => const NotificationSettingsScreen(),
+                  ),
+                );
+              },
+            ),
+
+            _buildSectionHeader('Health Information'),
+            _buildSettingItem(
+              title: 'Citation Sources',
+              subtitle: 'View medical citations and health information sources',
+              trailing: const Icon(
+                CupertinoIcons.chevron_right,
+                color: Color(0xFF888888),
+                size: 20,
+              ),
+              onTap: () {
+                Navigator.of(context).push(
+                  CupertinoPageRoute(
+                    builder: (context) => const CitationsScreen(),
+                  ),
+                );
+              },
+            ),
 
             _buildSectionHeader('Customization'),
             _buildSettingItem(
