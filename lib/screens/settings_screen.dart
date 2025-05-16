@@ -201,23 +201,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: _showCurrencyPicker,
               ),
 
-            _buildSectionHeader('Notifications'),
-            _buildSettingItem(
-              title: 'Notification Settings',
-              subtitle: 'Manage reminders and alerts',
-              trailing: const Icon(
-                CupertinoIcons.chevron_right,
-                color: Color(0xFF888888),
-                size: 20,
-              ),
-              onTap: () {
-                Navigator.of(context).push(
-                  CupertinoPageRoute(
-                    builder: (context) => const NotificationSettingsScreen(),
-                  ),
-                );
-              },
-            ),
+            // _buildSectionHeader('Notifications'),
+            // _buildSettingItem(
+            //   title: 'Notification Settings',
+            //   subtitle: 'Manage reminders and alerts',
+            //   trailing: const Icon(
+            //     CupertinoIcons.chevron_right,
+            //     color: Color(0xFF888888),
+            //     size: 20,
+            //   ),
+            //   onTap: () {
+            //     Navigator.of(context).push(
+            //       CupertinoPageRoute(
+            //         builder: (context) => const NotificationSettingsScreen(),
+            //       ),
+            //     );
+            //   },
+            // ),
 
             _buildSectionHeader('Health Information'),
             _buildSettingItem(

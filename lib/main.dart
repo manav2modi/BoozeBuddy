@@ -1,5 +1,4 @@
 // lib/main.dart
-import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
@@ -14,16 +13,16 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize notification service
-  final notificationService = NotificationService();
-  await notificationService.init();
+  //final notificationService = NotificationService();
+  //await notificationService.init();
 
   // Set up notification action listeners
-  AwesomeNotifications().setListeners(
-      onActionReceivedMethod:         NotificationController.onActionReceivedMethod,
-      onNotificationCreatedMethod:    NotificationController.onNotificationCreatedMethod,
-      onNotificationDisplayedMethod:  NotificationController.onNotificationDisplayedMethod,
-      onDismissActionReceivedMethod:  NotificationController.onDismissActionReceivedMethod
-  );
+  // AwesomeNotifications().setListeners(
+  //     onActionReceivedMethod:         NotificationController.onActionReceivedMethod,
+  //     onNotificationCreatedMethod:    NotificationController.onNotificationCreatedMethod,
+  //     onNotificationDisplayedMethod:  NotificationController.onNotificationDisplayedMethod,
+  //     onDismissActionReceivedMethod:  NotificationController.onDismissActionReceivedMethod
+  // );
 
   // Set preferred orientations
   SystemChrome.setPreferredOrientations([
@@ -44,41 +43,41 @@ void main() async {
 }
 
 // Define the notification controller with the required static methods
-class NotificationController {
-  /// Use this method to detect when a new notification or a schedule is created
-  @pragma("vm:entry-point")
-  static Future<void> onNotificationCreatedMethod(ReceivedNotification receivedNotification) async {
-    // Your code goes here
-  }
-
-  /// Use this method to detect every time that a new notification is displayed
-  @pragma("vm:entry-point")
-  static Future<void> onNotificationDisplayedMethod(ReceivedNotification receivedNotification) async {
-    // Your code goes here
-  }
-
-  /// Use this method to detect if the user dismissed a notification
-  @pragma("vm:entry-point")
-  static Future<void> onDismissActionReceivedMethod(ReceivedAction receivedAction) async {
-    // Your code goes here
-  }
-
-  /// Use this method to detect when the user taps on a notification or action button
-  @pragma("vm:entry-point")
-  static Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
-    // Your code goes here
-
-    // Example: Navigate to appropriate screen based on notification type
-    if (receivedAction.channelKey == NotificationService.eveningReminderChannelKey) {
-      // Navigate to add drink screen
-      // For now we'll just print a message
-      print('User tapped on evening reminder notification');
-    } else if (receivedAction.channelKey == NotificationService.weeklyStatsChannelKey) {
-      // Navigate to stats screen
-      print('User tapped on weekly stats notification');
-    }
-  }
-}
+// class NotificationController {
+//   /// Use this method to detect when a new notification or a schedule is created
+//   @pragma("vm:entry-point")
+//   static Future<void> onNotificationCreatedMethod(ReceivedNotification receivedNotification) async {
+//     // Your code goes here
+//   }
+//
+//   /// Use this method to detect every time that a new notification is displayed
+//   @pragma("vm:entry-point")
+//   static Future<void> onNotificationDisplayedMethod(ReceivedNotification receivedNotification) async {
+//     // Your code goes here
+//   }
+//
+//   /// Use this method to detect if the user dismissed a notification
+//   @pragma("vm:entry-point")
+//   static Future<void> onDismissActionReceivedMethod(ReceivedAction receivedAction) async {
+//     // Your code goes here
+//   }
+//
+//   /// Use this method to detect when the user taps on a notification or action button
+//   @pragma("vm:entry-point")
+//   static Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
+//     // Your code goes here
+//
+//     // // Example: Navigate to appropriate screen based on notification type
+//     // if (receivedAction.channelKey == NotificationService.eveningReminderChannelKey) {
+//     //   // Navigate to add drink screen
+//     //   // For now we'll just print a message
+//     //   print('User tapped on evening reminder notification');
+//     // } else if (receivedAction.channelKey == NotificationService.weeklyStatsChannelKey) {
+//     //   // Navigate to stats screen
+//     //   print('User tapped on weekly stats notification');
+//     // }
+//   }
+// }
 
 // SipTrackApp implementation remains the same
 class SipTrackApp extends StatelessWidget {
