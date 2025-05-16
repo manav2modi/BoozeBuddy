@@ -1,6 +1,7 @@
 // lib/screens/home_screen.dart - Modified to include Calendar View
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:sip_track/models/favorite_drink.dart';
 import 'package:sip_track/services/favorite_drink_service.dart';
@@ -44,11 +45,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   int _currentTabIndex = 0;
   bool _costTrackingEnabled = false;
   List<FavoriteDrink> _favoriteDrinks = [];
+  bool _showFabAnimation = false;
 
   @override
   void initState() {
     super.initState();
-    // Update tab controller to include 3 tabs (Drinks, Calendar, Stats)
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
@@ -61,6 +62,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _loadDrinks();
     _loadFavoriteDrinks();
     _loadCustomDrinks();
+
+    // Add this to trigger animation after a short delay
+    Future.delayed(const Duration(milliseconds: 100), () {
+      setState(() {
+        _showFabAnimation = true;
+      });
+    });
   }
 
   // Load favorite drinks
@@ -556,12 +564,81 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
       ),
       floatingActionButton: _currentTabIndex == 0
-          ? FloatingActionButton(
-        backgroundColor: AppTheme.primaryColor,
-        child: const Icon(CupertinoIcons.add),
-        onPressed: _navigateToAddDrink,
+          ? TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0.9, end: 1.0),
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.elasticOut,
+        builder: (context, value, child) {
+          return Transform.scale(
+            scale: value,
+            child: Container(
+              height: 65, // Larger size for better visibility
+              width: 65,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: AppTheme.boozeBuddyGradient,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withOpacity(0.3),
+                    spreadRadius: 1,
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(32),
+                  splashColor: Colors.white.withOpacity(0.2),
+                  onTap: () {
+                    // Add haptic feedback
+                    HapticFeedback.mediumImpact();
+                    _navigateToAddDrink();
+                  },
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Main add icon
+                      const Icon(
+                        CupertinoIcons.add,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+
+                      // Subtle drink icons around the button for fun
+                      Positioned(
+                        top: 8,
+                        right: 10,
+                        child: Transform.rotate(
+                          angle: 0.3,
+                          child: const Text(
+                            '🍺',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 8,
+                        left: 10,
+                        child: Transform.rotate(
+                          angle: -0.2,
+                          child: const Text(
+                            '🍷',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       )
           : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 

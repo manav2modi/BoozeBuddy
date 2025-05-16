@@ -1,4 +1,6 @@
 // lib/screens/add_drink_screen.dart
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:sip_track/models/favorite_drink.dart';
@@ -783,42 +785,109 @@ class _AddDrinkScreenState extends State<AddDrinkScreen> with SingleTickerProvid
               ),
 
               // Save Button
-              SizedBox(
+              Container(
                 width: double.infinity,
+                margin: const EdgeInsets.only(top: 8),
                 child: CupertinoButton(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  color: selectedColor,
-                  borderRadius: BorderRadius.circular(10),
+                  padding: EdgeInsets.zero,
                   onPressed: _isSaving ? null : _saveDrink,
-                  child: _isSaving
-                      ? const CupertinoActivityIndicator(color: Colors.white)
-                      : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _selectedType == DrinkType.custom && _selectedCustomDrink != null
-                            ? _selectedCustomDrink!.emoji
-                            : _drinkTypesInfo[_selectedType]!['emoji'],
-                        style: const TextStyle(
-                          fontSize: 20,
-                          decoration: TextDecoration.none,
-                        ),
+                  child: Container(
+                    height: 56, // Taller button for better tap area
+                    decoration: BoxDecoration(
+                      gradient: _isSaving
+                          ? LinearGradient(
+                        colors: [
+                          selectedColor.withOpacity(0.6),
+                          selectedColor.withOpacity(0.4),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                          : LinearGradient(
+                        colors: [
+                          selectedColor,
+                          selectedColor.withOpacity(0.8),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _isEditing
-                            ? 'Update Drink'
-                            : _drinkCount > 1
-                            ? 'Save $_drinkCount Drinks'
-                            : 'Save Drink',
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          decoration: TextDecoration.none,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: selectedColor.withOpacity(0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
+                      ],
+                    ),
+                    child: Center(
+                      child: _isSaving
+                          ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CupertinoActivityIndicator(color: Colors.white),
+                          const SizedBox(width: 12),
+                          Text(
+                            _isEditing ? 'Updating...' : 'Adding...',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      )
+                          : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Emoji or icon based on drink type
+                          Text(
+                            _selectedType == DrinkType.custom && _selectedCustomDrink != null
+                                ? _selectedCustomDrink!.emoji
+                                : _drinkTypesInfo[_selectedType]!['emoji'],
+                            style: const TextStyle(
+                              fontSize: 22,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          // Text with drink count if multiple
+                          Text(
+                            _isEditing
+                                ? 'Update Drink'
+                                : _drinkCount > 1
+                                ? 'Add $_drinkCount Drinks'
+                                : 'Add Drink',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                          // If multiple drinks, show little drink indicators
+                          if (_drinkCount > 1 && !_isEditing) ...[
+                            const SizedBox(width: 8),
+                            for (int i = 0; i < min(_drinkCount, 3); i++)
+                              Container(
+                                margin: const EdgeInsets.only(left: 2),
+                                child: const Text(
+                                  '🥃',
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            if (_drinkCount > 3)
+                              Text(
+                                '+${_drinkCount - 3}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
+                              ),
+                          ],
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
