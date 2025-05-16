@@ -6,6 +6,8 @@ class StandardDrinksSlider extends StatelessWidget {
   final double standardDrinks;
   final Color selectedColor;
   final ValueChanged<double> onChanged;
+  final int drinkCount;
+  final ValueChanged<int> onDrinkCountChanged;
 
   static const Color _cardColor = Color(0xFF222222);
   static const Color _cardBorderColor = Color(0xFF333333);
@@ -16,6 +18,8 @@ class StandardDrinksSlider extends StatelessWidget {
     required this.standardDrinks,
     required this.selectedColor,
     required this.onChanged,
+    required this.drinkCount,
+    required this.onDrinkCountChanged,
   }) : super(key: key);
 
   @override
@@ -106,6 +110,89 @@ class StandardDrinksSlider extends StatelessWidget {
                     color: selectedColor,
                     decoration: TextDecoration.none,
                   ),
+                ),
+              ),
+            ),
+
+            // Add a drink count selector
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'Number of drinks:',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: _textSecondaryColor,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF333333),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            CupertinoIcons.minus,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                        onPressed: drinkCount > 1
+                            ? () => onDrinkCountChanged(drinkCount - 1)
+                            : null,
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          '$drinkCount',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: selectedColor,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            CupertinoIcons.plus,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                        onPressed: () => onDrinkCountChanged(drinkCount + 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            // Add a total indicator
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                'Total: ${(standardDrinks * drinkCount).toStringAsFixed(1)} standard drinks',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: selectedColor,
+                  fontSize: 15,
+                  decoration: TextDecoration.none,
                 ),
               ),
             ),
