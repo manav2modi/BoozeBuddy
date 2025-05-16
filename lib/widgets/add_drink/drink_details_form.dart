@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
+import 'package:sip_track/widgets/enhanced_location_picker.dart';
 import 'package:sip_track/widgets/location_widget.dart';
 
 class DrinkDetailsForm extends StatelessWidget {
@@ -76,7 +77,8 @@ class DrinkDetailsForm extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            LocationAutocompleteField(
+            // Use the new enhanced location picker
+            EnhancedLocationPicker(
               controller: locationController,
               accentColor: selectedColor,
             ),

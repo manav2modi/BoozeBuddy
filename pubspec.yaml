@@ -21,6 +21,8 @@ dependencies:
   timezone: ^0.10.1
   flutter_native_timezone: ^2.0.0
   url_launcher: ^6.3.1
+  geolocator: ^12.0.0
+  geocoding: ^3.0.0
 #  awesome_notifications_core: ^0.10.0 # use the latest core version available
 #  awesome_notifications: ^0.10.0 # This version is managed by core plugin
 #  awesome_notifications_fcm: ^0.10.0

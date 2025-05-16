@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class LocationService {
   static const String _locationsKey = 'saved_locations';
+  static const int _maxSavedLocations = 20; // Limit the number of saved locations
 
   // Get all saved locations
   Future<List<String>> getSavedLocations() async {
@@ -21,7 +22,7 @@ class LocationService {
         'Bronx',
         'Friends Home'
       ];
-      // Save these defaul ts
+      // Save these defaults
       await prefs.setStringList(_locationsKey, locations);
     }
 
@@ -35,13 +36,21 @@ class LocationService {
     final prefs = await SharedPreferences.getInstance();
     final locations = await getSavedLocations();
 
-    // Don't add duplicates
-    if (!locations.contains(location)) {
-      locations.add(location);
-      return prefs.setStringList(_locationsKey, locations);
+    // Don't add duplicates - but move to top if exists
+    if (locations.contains(location)) {
+      locations.remove(location);
+      locations.insert(0, location); // Move to the top
+    } else {
+      // Add new location at the top
+      locations.insert(0, location);
+
+      // Limit the number of saved locations
+      if (locations.length > _maxSavedLocations) {
+        locations.removeLast();
+      }
     }
 
-    return true;
+    return prefs.setStringList(_locationsKey, locations);
   }
 
   // Get location suggestions based on query
@@ -54,5 +63,11 @@ class LocationService {
     return locations
         .where((location) => location.toLowerCase().contains(query.toLowerCase()))
         .toList();
+  }
+
+  // Clear all saved locations
+  Future<bool> clearSavedLocations() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.remove(_locationsKey);
   }
 }
