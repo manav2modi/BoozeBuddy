@@ -1,4 +1,4 @@
-// lib/screens/notification_settings_screen.dart
+// lib/screens/notification_settings_screen.dart - Enhanced version
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,16 +19,25 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   // Notification settings
   bool _allNotificationsEnabled = true;
   bool _eveningReminderEnabled = true;
+  bool _morningRecapEnabled = true;
   bool _weeklySummaryEnabled = true;
   bool _milestoneEnabled = true;
-  bool _badgeEnabled = true;
-  TimeOfDay _reminderTime = const TimeOfDay(hour: 21, minute: 30); // 9:30 PM
+  bool _streakReminderEnabled = true;
+  bool _weekendCheckInEnabled = true;
+  bool _hydrationReminderEnabled = true;
+  bool _soberDayEncouragementEnabled = true;
+
+  TimeOfDay _eveningReminderTime = const TimeOfDay(hour: 21, minute: 30); // 9:30 PM
+  TimeOfDay _morningRecapTime = const TimeOfDay(hour: 11, minute: 0); // 11:00 AM
   int _weeklyReportDay = DateTime.sunday;
 
   final List<String> _dayNames = [
     'Monday', 'Tuesday', 'Wednesday',
     'Thursday', 'Friday', 'Saturday', 'Sunday'
   ];
+
+  bool _showDebugInfo = false;
+  Map<String, dynamic>? _debugInfo;
 
   @override
   void initState() {
@@ -42,31 +51,79 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     setState(() {
       _allNotificationsEnabled = prefs.getBool(NotificationService.enabledKey) ?? true;
       _eveningReminderEnabled = prefs.getBool(NotificationService.eveningReminderEnabledKey) ?? true;
+      _morningRecapEnabled = prefs.getBool(NotificationService.morningRecapEnabledKey) ?? true;
       _weeklySummaryEnabled = prefs.getBool(NotificationService.weeklySummaryEnabledKey) ?? true;
       _milestoneEnabled = prefs.getBool(NotificationService.milestoneEnabledKey) ?? true;
-      _badgeEnabled = prefs.getBool(NotificationService.badgeEnabledKey) ?? false;
+      _streakReminderEnabled = prefs.getBool(NotificationService.streakReminderEnabledKey) ?? true;
+      _weekendCheckInEnabled = prefs.getBool(NotificationService.weekendCheckInEnabledKey) ?? true;
+      _hydrationReminderEnabled = prefs.getBool(NotificationService.hydrationReminderEnabledKey) ?? true;
+      _soberDayEncouragementEnabled = prefs.getBool(NotificationService.soberDayEncouragementEnabledKey) ?? true;
 
-      // Get reminder time
-      final reminderTimeString = prefs.getString(NotificationService.reminderTimeKey) ?? '21:30';
-      final timeParts = reminderTimeString.split(':');
-      final hour = int.parse(timeParts[0]);
-      final minute = int.parse(timeParts[1]);
-      _reminderTime = TimeOfDay(hour: hour, minute: minute);
+      // Get evening reminder time
+      final eveningTimeString = prefs.getString(NotificationService.eveningReminderTimeKey) ?? '21:30';
+      final eveningTimeParts = eveningTimeString.split(':');
+      final eveningHour = int.parse(eveningTimeParts[0]);
+      final eveningMinute = int.parse(eveningTimeParts[1]);
+      _eveningReminderTime = TimeOfDay(hour: eveningHour, minute: eveningMinute);
+
+      // Get morning recap time
+      final morningTimeString = prefs.getString(NotificationService.morningRecapTimeKey) ?? '11:00';
+      final morningTimeParts = morningTimeString.split(':');
+      final morningHour = int.parse(morningTimeParts[0]);
+      final morningMinute = int.parse(morningTimeParts[1]);
+      _morningRecapTime = TimeOfDay(hour: morningHour, minute: morningMinute);
 
       // Get weekly report day
       _weeklyReportDay = prefs.getInt(NotificationService.weeklyReportDayKey) ?? DateTime.sunday;
     });
   }
 
-  void _showTimePicker() {
+  void _showTimePicker(bool isEvening) {
+    final currentTime = isEvening ? _eveningReminderTime : _morningRecapTime;
+    final title = isEvening ? 'Evening Reminder Time' : 'Morning Recap Time';
+
     showCupertinoModalPopup(
       context: context,
       builder: (BuildContext context) {
         return Container(
-          height: 250,
-          color: const Color(0xFF2C2C2C),
+          height: 300,
+          decoration: const BoxDecoration(
+            color: Color(0xFF2C2C2C),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
           child: Column(
             children: [
+              Container(
+                height: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.secondaryColor.withOpacity(0.3),
+                      AppTheme.primaryColor.withOpacity(0.3),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      isEvening ? '🌙' : '☀️',
+                      style: const TextStyle(fontSize: 20, decoration: TextDecoration.none,),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Container(
                 height: 44,
                 color: const Color(0xFF2C2C2C),
@@ -75,15 +132,17 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   children: [
                     CupertinoButton(
                       child: const Text('Cancel'),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                     CupertinoButton(
                       child: const Text('Done'),
                       onPressed: () {
                         Navigator.of(context).pop();
-                        _notificationService.setEveningReminderTime(_reminderTime);
+                        if (isEvening) {
+                          _notificationService.setEveningReminderTime(_eveningReminderTime);
+                        } else {
+                          _notificationService.setMorningRecapTime(_morningRecapTime);
+                        }
                       },
                     ),
                   ],
@@ -95,15 +154,22 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   mode: CupertinoDatePickerMode.time,
                   initialDateTime: DateTime(
                       2022, 1, 1,
-                      _reminderTime.hour,
-                      _reminderTime.minute
+                      currentTime.hour,
+                      currentTime.minute
                   ),
                   onDateTimeChanged: (DateTime newTime) {
                     setState(() {
-                      _reminderTime = TimeOfDay(
-                          hour: newTime.hour,
-                          minute: newTime.minute
-                      );
+                      if (isEvening) {
+                        _eveningReminderTime = TimeOfDay(
+                            hour: newTime.hour,
+                            minute: newTime.minute
+                        );
+                      } else {
+                        _morningRecapTime = TimeOfDay(
+                            hour: newTime.hour,
+                            minute: newTime.minute
+                        );
+                      }
                     });
                   },
                   backgroundColor: const Color(0xFF2C2C2C),
@@ -121,10 +187,41 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       context: context,
       builder: (BuildContext context) {
         return Container(
-          height: 250,
-          color: const Color(0xFF2C2C2C),
+          height: 300,
+          decoration: const BoxDecoration(
+            color: Color(0xFF2C2C2C),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
           child: Column(
             children: [
+              Container(
+                height: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.secondaryColor.withOpacity(0.3),
+                      AppTheme.primaryColor.withOpacity(0.3),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: const Row(
+                  children: [
+                    Text('📊', style: TextStyle(fontSize: 20, decoration: TextDecoration.none,)),
+                    SizedBox(width: 8),
+                    Text(
+                      'Weekly Summary Day',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Container(
                 height: 44,
                 color: const Color(0xFF2C2C2C),
@@ -133,9 +230,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   children: [
                     CupertinoButton(
                       child: const Text('Cancel'),
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                     CupertinoButton(
                       child: const Text('Done'),
@@ -163,7 +258,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   children: _dayNames.map((day) => Center(
                     child: Text(
                       day,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Colors.white, decoration: TextDecoration.none,),
                     ),
                   )).toList(),
                 ),
@@ -176,12 +271,10 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   }
 
   int _dayToIndex(int day) {
-    // Convert from DateTime.monday (1) to index 0, etc.
     return day - 1;
   }
 
   int _indexToDay(int index) {
-    // Convert from index 0 to DateTime.monday (1), etc.
     return index + 1;
   }
 
@@ -210,6 +303,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
+                          decoration: TextDecoration.none,
                         ),
                       ),
                       const Spacer(),
@@ -225,22 +319,17 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       ),
                     ],
                   ),
-                  if (_allNotificationsEnabled)
-                    const Text(
-                      'BoozeBuddy will send you helpful reminders and insights about your drinking patterns.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFFAAAAAA),
-                      ),
-                    )
-                  else
-                    const Text(
-                      'Turn on notifications to get timely reminders and insights.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFFAAAAAA),
-                      ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _allNotificationsEnabled
+                        ? 'BoozeBuddy will send you helpful reminders and insights about your drinking patterns.'
+                        : 'Turn on notifications to get timely reminders and insights.',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFFAAAAAA),
+                      decoration: TextDecoration.none,
                     ),
+                  ),
                 ],
               ),
             ),
@@ -261,10 +350,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                             color: AppTheme.secondaryColor.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
-                            '🍹',
-                            style: TextStyle(fontSize: 20),
-                          ),
+                          child: const Text('🌙', style: TextStyle(fontSize: 20, decoration: TextDecoration.none,)),
                         ),
                         const SizedBox(width: 12),
                         const Expanded(
@@ -274,6 +360,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,
+                              decoration: TextDecoration.none,
                             ),
                           ),
                         ),
@@ -298,20 +385,19 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       style: TextStyle(
                         fontSize: 14,
                         color: Color(0xFFAAAAAA),
+                        decoration: TextDecoration.none,
                       ),
                     ),
                     if (_eveningReminderEnabled) ...[
                       const SizedBox(height: 16),
                       GestureDetector(
-                        onTap: _showTimePicker,
+                        onTap: () => _showTimePicker(true),
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                           decoration: BoxDecoration(
                             color: AppTheme.cardColor,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: AppTheme.dividerColor,
-                            ),
+                            border: Border.all(color: AppTheme.dividerColor),
                           ),
                           child: Row(
                             children: [
@@ -323,16 +409,115 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                               const SizedBox(width: 8),
                               const Text(
                                 'Reminder Time:',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                ),
+                                style: TextStyle(color: Colors.white, decoration: TextDecoration.none,),
                               ),
                               const Spacer(),
                               Text(
-                                _reminderTime.format(context),
+                                _eveningReminderTime.format(context),
                                 style: const TextStyle(
                                   color: AppTheme.secondaryColor,
                                   fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.none,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                CupertinoIcons.chevron_right,
+                                color: Color(0xFF888888),
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // NEW: Morning Recap Settings
+              FunCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF9F43).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text('☀️', style: TextStyle(fontSize: 20, decoration: TextDecoration.none,)),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Morning Recap',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ),
+                        CupertinoSwitch(
+                          value: _morningRecapEnabled,
+                          activeColor: const Color(0xFFFF9F43),
+                          onChanged: (value) {
+                            setState(() {
+                              _morningRecapEnabled = value;
+                            });
+                            _notificationService.toggleNotificationType(
+                                NotificationService.morningRecapEnabledKey,
+                                value
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Morning check-in to add any drinks you forgot to log yesterday. Great for catching up!',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFFAAAAAA),
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                    if (_morningRecapEnabled) ...[
+                      const SizedBox(height: 16),
+                      GestureDetector(
+                        onTap: () => _showTimePicker(false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cardColor,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppTheme.dividerColor),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                CupertinoIcons.sun_max,
+                                color: Color(0xFFFF9F43),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Morning Time:',
+                                style: TextStyle(color: Colors.white, decoration: TextDecoration.none,),
+                              ),
+                              const Spacer(),
+                              Text(
+                                _morningRecapTime.format(context),
+                                style: const TextStyle(
+                                  color: Color(0xFFFF9F43),
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.none,
                                 ),
                               ),
                               const SizedBox(width: 4),
@@ -365,10 +550,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                             color: AppTheme.primaryColor.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
-                            '📊',
-                            style: TextStyle(fontSize: 20),
-                          ),
+                          child: const Text('📊', style: TextStyle(fontSize: 20, decoration: TextDecoration.none,)),
                         ),
                         const SizedBox(width: 12),
                         const Expanded(
@@ -378,6 +560,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,
+                              decoration: TextDecoration.none,
                             ),
                           ),
                         ),
@@ -402,6 +585,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       style: TextStyle(
                         fontSize: 14,
                         color: Color(0xFFAAAAAA),
+                        decoration: TextDecoration.none,
                       ),
                     ),
                     if (_weeklySummaryEnabled) ...[
@@ -413,9 +597,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                           decoration: BoxDecoration(
                             color: AppTheme.cardColor,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: AppTheme.dividerColor,
-                            ),
+                            border: Border.all(color: AppTheme.dividerColor),
                           ),
                           child: Row(
                             children: [
@@ -427,9 +609,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                               const SizedBox(width: 8),
                               const Text(
                                 'Send summary on:',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                ),
+                                style: TextStyle(color: Colors.white, decoration: TextDecoration.none,),
                               ),
                               const Spacer(),
                               Text(
@@ -437,6 +617,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                                 style: const TextStyle(
                                   color: AppTheme.primaryColor,
                                   fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.none,
                                 ),
                               ),
                               const SizedBox(width: 4),
@@ -456,7 +637,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
 
               const SizedBox(height: 16),
 
-              // Milestone and Achievement Settings
+              // Streak Reminders
               FunCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,10 +650,121 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                             color: const Color(0xFF4CAF50).withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
-                            '🏆',
-                            style: TextStyle(fontSize: 20),
+                          child: const Text('🔥', style: TextStyle(fontSize: 20, decoration: TextDecoration.none,)),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Tracking Streak Reminders',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              decoration: TextDecoration.none,
+                            ),
                           ),
+                        ),
+                        CupertinoSwitch(
+                          value: _streakReminderEnabled,
+                          activeColor: const Color(0xFF4CAF50),
+                          onChanged: (value) {
+                            setState(() {
+                              _streakReminderEnabled = value;
+                            });
+                            _notificationService.toggleNotificationType(
+                                NotificationService.streakReminderEnabledKey,
+                                value
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Get reminders to keep your tracking streak alive when you\'re on a roll.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFFAAAAAA),
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Weekend Check-ins
+              FunCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF9C27B0).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text('🎉', style: TextStyle(fontSize: 20, decoration: TextDecoration.none,)),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Weekend Check-ins',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ),
+                        CupertinoSwitch(
+                          value: _weekendCheckInEnabled,
+                          activeColor: const Color(0xFF9C27B0),
+                          onChanged: (value) {
+                            setState(() {
+                              _weekendCheckInEnabled = value;
+                            });
+                            _notificationService.toggleNotificationType(
+                                NotificationService.weekendCheckInEnabledKey,
+                                value
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Friday evening reminders to be mindful during weekend social activities.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFFAAAAAA),
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Milestones & Achievements
+              FunCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF5722).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text('🏆', style: TextStyle(fontSize: 20, decoration: TextDecoration.none,)),
                         ),
                         const SizedBox(width: 12),
                         const Expanded(
@@ -482,12 +774,13 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,
+                              decoration: TextDecoration.none,
                             ),
                           ),
                         ),
                         CupertinoSwitch(
                           value: _milestoneEnabled,
-                          activeColor: const Color(0xFF4CAF50),
+                          activeColor: const Color(0xFFFF5722),
                           onChanged: (value) {
                             setState(() {
                               _milestoneEnabled = value;
@@ -506,6 +799,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                       style: TextStyle(
                         fontSize: 14,
                         color: Color(0xFFAAAAAA),
+                        decoration: TextDecoration.none,
                       ),
                     ),
                   ],
@@ -514,61 +808,280 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
 
               const SizedBox(height: 16),
 
-              // Passport Badge Notifications
+              // Sober Day Encouragement
+              FunCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4CAF50).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text('💚', style: TextStyle(fontSize: 20, decoration: TextDecoration.none,)),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Sober Day Encouragement',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ),
+                        CupertinoSwitch(
+                          value: _soberDayEncouragementEnabled,
+                          activeColor: const Color(0xFF4CAF50),
+                          onChanged: (value) {
+                            setState(() {
+                              _soberDayEncouragementEnabled = value;
+                            });
+                            _notificationService.toggleNotificationType(
+                                NotificationService.soberDayEncouragementEnabledKey,
+                                value
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Positive reinforcement when you have alcohol-free days. Building healthy habits!',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFFAAAAAA),
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Test Section
               // FunCard(
+              //   color: const Color(0xFF2D5AA0).withOpacity(0.1),
               //   child: Column(
               //     crossAxisAlignment: CrossAxisAlignment.start,
               //     children: [
-              //       Row(
+              //       const Row(
               //         children: [
-              //           Container(
-              //             padding: const EdgeInsets.all(8),
-              //             decoration: BoxDecoration(
-              //               color: const Color(0xFFFF5722).withOpacity(0.2),
-              //               borderRadius: BorderRadius.circular(8),
-              //             ),
-              //             child: const Text(
-              //               '🎖️',
-              //               style: TextStyle(fontSize: 20),
-              //             ),
+              //           Icon(
+              //             CupertinoIcons.lab_flask,
+              //             color: Color(0xFF64B5F6),
+              //             size: 20,
               //           ),
-              //           const SizedBox(width: 12),
-              //           const Expanded(
-              //             child: Text(
-              //               'Passport Badges',
-              //               style: TextStyle(
-              //                 fontSize: 16,
-              //                 fontWeight: FontWeight.w600,
-              //                 color: Colors.white,
-              //               ),
+              //           SizedBox(width: 8),
+              //           Text(
+              //             'Test Notifications',
+              //             style: TextStyle(
+              //               fontSize: 16,
+              //               fontWeight: FontWeight.bold,
+              //               color: Color(0xFF64B5F6),
+              //               decoration: TextDecoration.none,
               //             ),
-              //           ),
-              //           CupertinoSwitch(
-              //             value: _badgeEnabled,
-              //             activeColor: const Color(0xFFFF5722),
-              //             onChanged: (value) {
-              //               setState(() {
-              //                 _badgeEnabled = value;
-              //               });
-              //               _notificationService.toggleNotificationType(
-              //                   NotificationService.badgeEnabledKey,
-              //                   false
-              //               );
-              //             },
               //           ),
               //         ],
               //       ),
-              //       const SizedBox(height: 8),
-              //       const Text(
-              //         'Get notified when you earn new badges in your BoozeBuddy Passport.',
+              //       const SizedBox(height: 12),
+              //       Text(
+              //         'Test your notification settings to make sure everything is working correctly.',
               //         style: TextStyle(
               //           fontSize: 14,
-              //           color: Color(0xFFAAAAAA),
+              //           color: Colors.grey[300],
+              //         ),
+              //       ),
+              //       const SizedBox(height: 16),
+              //
+              //       // Test buttons row
+              //       Row(
+              //         children: [
+              //           Expanded(
+              //             child: CupertinoButton(
+              //               padding: EdgeInsets.zero,
+              //               onPressed: () async {
+              //                 await _notificationService.sendTestNotification();
+              //                 if (mounted) {
+              //                   ScaffoldMessenger.of(context).showSnackBar(
+              //                     SnackBar(
+              //                       content: const Text('Test notification sent! On iOS, background the app to see it.'),
+              //                       duration: const Duration(seconds: 4),
+              //                       behavior: SnackBarBehavior.floating,
+              //                       action: SnackBarAction(
+              //                         label: 'Background App',
+              //                         onPressed: () {
+              //                           // This will minimize the app on iOS
+              //                           // User can then see the notification
+              //                         },
+              //                       ),
+              //                     ),
+              //                   );
+              //                 }
+              //               },
+              //               child: Container(
+              //                 padding: const EdgeInsets.symmetric(vertical: 12),
+              //                 decoration: BoxDecoration(
+              //                   color: const Color(0xFF64B5F6).withOpacity(0.2),
+              //                   borderRadius: BorderRadius.circular(8),
+              //                   border: Border.all(
+              //                     color: const Color(0xFF64B5F6).withOpacity(0.3),
+              //                   ),
+              //                 ),
+              //                 child: const Row(
+              //                   mainAxisAlignment: MainAxisAlignment.center,
+              //                   children: [
+              //                     Text('⚡', style: TextStyle(fontSize: 16)),
+              //                     SizedBox(width: 6),
+              //                     Text(
+              //                       'Instant Test',
+              //                       style: TextStyle(
+              //                         color: Color(0xFF64B5F6),
+              //                         fontWeight: FontWeight.w600,
+              //                       ),
+              //                     ),
+              //                   ],
+              //                 ),
+              //               ),
+              //             ),
+              //           ),
+              //           const SizedBox(width: 12),
+              //           Expanded(
+              //             child: CupertinoButton(
+              //               padding: EdgeInsets.zero,
+              //               onPressed: () async {
+              //                 await _notificationService.sendTestScheduledNotification();
+              //                 if (mounted) {
+              //                   ScaffoldMessenger.of(context).showSnackBar(
+              //                     const SnackBar(
+              //                       content: Text('Scheduled test notification in 5 seconds!'),
+              //                       duration: Duration(seconds: 4),
+              //                       behavior: SnackBarBehavior.floating,
+              //                     ),
+              //                   );
+              //                 }
+              //               },
+              //               child: Container(
+              //                 padding: const EdgeInsets.symmetric(vertical: 12),
+              //                 decoration: BoxDecoration(
+              //                   color: const Color(0xFFFF9F43).withOpacity(0.2),
+              //                   borderRadius: BorderRadius.circular(8),
+              //                   border: Border.all(
+              //                     color: const Color(0xFFFF9F43).withOpacity(0.3),
+              //                   ),
+              //                 ),
+              //                 child: const Row(
+              //                   mainAxisAlignment: MainAxisAlignment.center,
+              //                   children: [
+              //                     Text('🕐', style: TextStyle(fontSize: 16)),
+              //                     SizedBox(width: 6),
+              //                     Text(
+              //                       'Scheduled Test',
+              //                       style: TextStyle(
+              //                         color: Color(0xFFFF9F43),
+              //                         fontWeight: FontWeight.w600,
+              //                       ),
+              //                     ),
+              //                   ],
+              //                 ),
+              //               ),
+              //             ),
+              //           ),
+              //         ],
+              //       ),
+              //
+              //       const SizedBox(height: 12),
+              //
+              //       // Milestone test button
+              //       CupertinoButton(
+              //         padding: EdgeInsets.zero,
+              //         onPressed: () async {
+              //           await _notificationService.sendMilestoneNotification('drinks_count', 25);
+              //           if (mounted) {
+              //             ScaffoldMessenger.of(context).showSnackBar(
+              //               const SnackBar(
+              //                 content: Text('Test milestone notification sent!'),
+              //                 duration: Duration(seconds: 2),
+              //                 behavior: SnackBarBehavior.floating,
+              //               ),
+              //             );
+              //           }
+              //         },
+              //         child: Container(
+              //           width: double.infinity,
+              //           padding: const EdgeInsets.symmetric(vertical: 12),
+              //           decoration: BoxDecoration(
+              //             color: const Color(0xFF4CAF50).withOpacity(0.2),
+              //             borderRadius: BorderRadius.circular(8),
+              //             border: Border.all(
+              //               color: const Color(0xFF4CAF50).withOpacity(0.3),
+              //             ),
+              //           ),
+              //           child: const Row(
+              //             mainAxisAlignment: MainAxisAlignment.center,
+              //             children: [
+              //               Text('🏆', style: TextStyle(fontSize: 16)),
+              //               SizedBox(width: 6),
+              //               Text(
+              //                 'Test Milestone Notification',
+              //                 style: TextStyle(
+              //                   color: Color(0xFF4CAF50),
+              //                   fontWeight: FontWeight.w600,
+              //                 ),
+              //               ),
+              //             ],
+              //           ),
               //         ),
               //       ),
               //     ],
               //   ),
               // ),
+
+              const SizedBox(height: 24),
+
+              // Helpful tip
+              FunCard(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.lightbulb,
+                          color: AppTheme.primaryColor,
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Pro Tip',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryColor,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Smart notifications adapt to your habits. The more you track, the more personalized and helpful they become!',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[300],
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ],
         ),
