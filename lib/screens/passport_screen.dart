@@ -242,7 +242,6 @@ class _PassportScreenState extends State<PassportScreen> with SingleTickerProvid
 
         await Share.shareFiles(
           [file.path],
-          text: 'My night out with BoozeBuddy 🍻',
         );
       }
     } catch (e) {
@@ -1090,4 +1089,26 @@ class _PassportBackgroundPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _BubblePainter extends CustomPainter {
+  final int bubbleCount;
+  _BubblePainter({this.bubbleCount = 30});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.white.withOpacity(0.05);
+    final rng = math.Random();
+
+    for (int i = 0; i < bubbleCount; i++) {
+      final radius = rng.nextDouble() * 20 + 5;                // 5–25px
+      final dx = rng.nextDouble() * size.width;
+      final dy = rng.nextDouble() * size.height;
+      canvas.drawCircle(Offset(dx, dy), radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BubblePainter old) =>
+      old.bubbleCount != bubbleCount;
 }
