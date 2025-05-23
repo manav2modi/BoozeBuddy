@@ -1,4 +1,4 @@
-// Create a new file: lib/widgets/common/confetti_overlay.dart
+// lib/widgets/common/confetti_overlay.dart
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../utils/theme.dart';

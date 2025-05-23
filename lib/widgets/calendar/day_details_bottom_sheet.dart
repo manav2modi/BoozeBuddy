@@ -13,6 +13,7 @@ class DayDetailsBottomSheet extends StatelessWidget {
   final Map<String, dynamic> customDrinksMap;
   final VoidCallback onAddDrink;
   final Function(String) onDeleteDrink;
+  final Function(DateTime) onViewPassport; // Added this parameter
 
   const DayDetailsBottomSheet({
     Key? key,
@@ -22,6 +23,7 @@ class DayDetailsBottomSheet extends StatelessWidget {
     required this.customDrinksMap,
     required this.onAddDrink,
     required this.onDeleteDrink,
+    required this.onViewPassport, // Added this parameter
   }) : super(key: key);
 
   @override
@@ -75,14 +77,51 @@ class DayDetailsBottomSheet extends StatelessWidget {
             ),
           ),
 
-          // Status and add button
+          // Status and buttons row - UPDATED
+          // … right after the date header …
+
+// 1) Drink summary on its own row
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: _buildDrinkSummary(totalDrinks, isToday),
+          ),
+
+// 2) Buttons in a second row
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
               children: [
-                Expanded(
-                  child: _buildDrinkSummary(totalDrinks, isToday),
-                ),
+                // only show View Passport if there are one or more drinks
+                if (drinks.isNotEmpty) ...[
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () => onViewPassport(selectedDay),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        gradient: AppTheme.boozeBuddyGradient,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text("✈️", style: TextStyle(fontSize: 16)),
+                          SizedBox(width: 8),
+                          Text(
+                            'View Passport',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+
+                // Always show Add Drink
                 CupertinoButton(
                   padding: EdgeInsets.zero,
                   onPressed: onAddDrink,
@@ -95,10 +134,7 @@ class DayDetailsBottomSheet extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          isToday ? "🍹" : "📝",
-                          style: const TextStyle(fontSize: 16),
-                        ),
+                        Text(isToday ? "🍹" : "📝", style: const TextStyle(fontSize: 16)),
                         const SizedBox(width: 8),
                         const Text(
                           'Add Drink',
@@ -115,7 +151,11 @@ class DayDetailsBottomSheet extends StatelessWidget {
             ),
           ),
 
+
           const Divider(color: AppTheme.dividerColor),
+
+// … then your Expanded(drinks list / empty state) …
+
 
           // Drinks list
           Expanded(

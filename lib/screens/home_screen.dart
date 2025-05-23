@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:sip_track/models/favorite_drink.dart';
+import 'package:sip_track/screens/passport_screen.dart';
 import 'package:sip_track/services/favorite_drink_service.dart';
 import '../models/drink.dart';
 import '../models/custom_drink.dart';
@@ -639,6 +640,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+
+  Future<void> _navigateToPassport(DateTime date) async {
+    await Navigator.of(context).push(
+      CupertinoPageRoute(
+        builder: (context) => PassportScreen(date: date),
+      ),
     );
   }
 
