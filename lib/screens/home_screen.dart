@@ -498,7 +498,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // Today's Drinks Tab with updated UI
+                  // Today's Drinks Tab with scrollable View Passport header
                   _isLoading || _loadingCustomDrinks
                       ? const Center(child: CupertinoActivityIndicator())
                       : _drinks.isEmpty
@@ -507,14 +507,29 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     onAddDrink: _navigateToAddDrink,
                   )
                       : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _drinks.length,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    itemCount: _drinks.length + 1, // +1 for the header button
                     itemBuilder: (context, index) {
-                      final drink = _drinks[index];
-                      // Wrap the DrinkFunCard in a Dismissible widget
+                      if (index == 0) {
+                        // Scroll-header: View Passport
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: GradientButton(
+                            text: 'View Passport',
+                            emoji: '✈️',
+                            onPressed: () =>
+                                _navigateToPassport(_selectedDate),
+                          ),
+                        );
+                      }
+
+                      final drink = _drinks[index - 1];
                       return Dismissible(
                         key: Key(drink.id),
-                        direction: DismissDirection.endToStart, // Only allow right-to-left swipe (delete)
+                        direction: DismissDirection.endToStart,
                         background: Container(
                           alignment: Alignment.centerRight,
                           padding: const EdgeInsets.only(right: 20),
@@ -525,26 +540,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ),
                         ),
                         confirmDismiss: (direction) async {
-                          // Show delete confirmation
-                          final confirmed = await _showDeleteConfirmation(context);
+                          final confirmed =
+                          await _showDeleteConfirmation(context);
                           if (confirmed) {
-                            // Remove item from the data source FIRST
                             await _storageService.deleteDrink(drink.id);
-
-                            // IMPORTANT: Update the local list immediately to prevent the error
                             setState(() {
-                              _drinks.removeWhere((item) => item.id == drink.id);
+                              _drinks
+                                  .removeWhere((d) => d.id == drink.id);
                             });
                           }
                           return confirmed;
                         },
-                        // Remove the onDismissed callback since we're handling deletion in confirmDismiss
                         child: GestureDetector(
-                          // Add tap to edit functionality
                           onTap: () => _navigateToEditDrink(drink),
                           child: DrinkFunCard(
                             accentColor: _getColorForDrink(drink),
-                            onLongPress: null, // Remove this since we're using swipe to delete
+                            onLongPress: null,
                             child: _buildDrinkContent(drink),
                           ),
                         ),
@@ -555,11 +566,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   // Stats Tab
                   const StatsScreen(),
 
-                  // New Calendar Tab
+                  // Calendar Tab
                   const CalendarScreen(),
-
                 ],
               ),
+
             ),
           ],
         ),
