@@ -227,22 +227,32 @@ class _PassportScreenState extends State<PassportScreen> with SingleTickerProvid
     });
 
     try {
+      // let the frame rebuild into “sharing” mode
       await Future.delayed(const Duration(milliseconds: 100));
 
-      RenderRepaintBoundary boundary = _passportKey.currentContext!
-          .findRenderObject() as RenderRepaintBoundary;
-
+      // capture the widget as an image
+      RenderRepaintBoundary boundary =
+      _passportKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
       ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
 
       if (byteData != null) {
+        // write it out to a temporary file
         final tempDir = await getTemporaryDirectory();
         final file = File('${tempDir.path}/boozebuddy_passport.png');
         await file.writeAsBytes(byteData.buffer.asUint8List());
 
-        await Share.shareFiles(
-          [file.path],
+        // wrap it in XFile and share via the new SharePlus API
+        final params = ShareParams(
+          text: 'Here’s my BoozeBuddy passport!',
+          files: [XFile(file.path)],
         );
+
+        final result = await SharePlus.instance.share(params);
+        if (result.status != ShareResultStatus.success) {
+          // user dismissed or some error
+          print('Share cancelled or failed: ${result.raw}');
+        }
       }
     } catch (e) {
       print('Error capturing passport: $e');
