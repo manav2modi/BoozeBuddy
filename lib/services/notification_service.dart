@@ -1,4 +1,4 @@
-// lib/services/notification_service.dart - Enhanced version
+// lib/services/notification_service.dart - iOS-optimized version
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
@@ -42,63 +42,114 @@ class NotificationService {
   static const String morningRecapTimeKey = 'morning_recap_time';
   static const String weeklyReportDayKey = 'weekly_report_day';
 
-  // Initialize the notification system
+  bool _iosPermissionsGranted = false;
+
+  // Initialize the notification system with proper iOS handling
   Future<void> init() async {
-    // Initialize timezone handling for scheduled notifications
-    tz.initializeTimeZones();
-    final String timeZoneName = await FlutterNativeTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(timeZoneName));
+    print('🔧 Initializing NotificationService...');
 
-    // Initialize platform-specific settings
-    const AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
+    try {
+      // Initialize timezone handling for scheduled notifications
+      tz.initializeTimeZones();
+      final String timeZoneName = await FlutterNativeTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      print('✅ Timezone initialized: $timeZoneName');
 
-    const DarwinInitializationSettings initializationSettingsDarwin =
-    DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-      defaultPresentAlert: true,
-      defaultPresentSound: true,
-      defaultPresentBadge: true,
-    );
+      // Initialize platform-specific settings
+      const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    final InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsDarwin,
-    );
+      // ENHANCED iOS settings - this is crucial for iOS notifications
+      const DarwinInitializationSettings initializationSettingsDarwin =
+      DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+        defaultPresentAlert: true,
+        defaultPresentSound: true,
+        defaultPresentBadge: true,
+        // These settings help with foreground notifications
+        notificationCategories: [],
+      );
 
-    await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: _onNotificationResponse,
-    );
+      final InitializationSettings initializationSettings = InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsDarwin,
+      );
 
-    // Request permissions for iOS
+      final bool? initialized = await flutterLocalNotificationsPlugin.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: _onNotificationResponse,
+        onDidReceiveBackgroundNotificationResponse: _onBackgroundNotificationResponse,
+      );
+
+      print('Plugin initialized: $initialized');
+
+      // CRITICAL: Request iOS permissions explicitly and check result
+      await _requestIOSPermissions();
+
+      // Set default settings if first launch
+      await _initDefaultSettings();
+
+      // Only schedule notifications if permissions are granted
+      if (_iosPermissionsGranted) {
+        await _scheduleAllNotifications();
+        print('✅ All notifications scheduled');
+      } else {
+        print('❌ iOS permissions not granted - notifications will not work');
+      }
+    } catch (e) {
+      print('❌ Error initializing notifications: $e');
+    }
+  }
+
+  // ENHANCED: Proper iOS permission handling
+  Future<void> _requestIOSPermissions() async {
     final IOSFlutterLocalNotificationsPlugin? iOSPlugin =
     flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
 
     if (iOSPlugin != null) {
-      await iOSPlugin.requestPermissions(
+      print('📱 Requesting iOS notification permissions...');
+
+      // Request permissions
+      final bool? result = await iOSPlugin.requestPermissions(
         alert: true,
         badge: true,
         sound: true,
+        critical: false, // Don't request critical unless needed
       );
+
+      _iosPermissionsGranted = result ?? false;
+      print('iOS permissions result: $result');
+
+      if (!_iosPermissionsGranted) {
+        print('⚠️  iOS notification permissions denied');
+        // You might want to show a dialog explaining why notifications are useful
+      } else {
+        print('✅ iOS notification permissions granted');
+      }
+    } else {
+      // Android or other platform
+      _iosPermissionsGranted = true;
+      print('✅ Non-iOS platform - permissions assumed granted');
     }
-
-    // Set default settings if first launch
-    await _initDefaultSettings();
-
-    // Schedule all enabled notifications
-    await _scheduleAllNotifications();
   }
 
-  // Handle foreground notifications on iOS
-  Future<void> _onDidReceiveLocalNotification(
-      int id, String? title, String? body, String? payload) async {
-    print('📱 Foreground notification received: $title - $body');
-    // You could show an in-app dialog here if desired
-    // For now, we'll just log it since iOS handles the display
+  // NEW: Check if notifications are actually enabled
+  Future<bool> areNotificationsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    final appEnabled = prefs.getBool(enabledKey) ?? true;
+
+    // For iOS, also check if system permissions are granted
+    return appEnabled && _iosPermissionsGranted;
+  }
+
+  // ENHANCED: Background notification handler
+  @pragma('vm:entry-point')
+  static void _onBackgroundNotificationResponse(NotificationResponse response) {
+    print('Background notification response: ${response.payload}');
+    // Handle background notification taps here
   }
 
   // Set default notification settings
@@ -128,17 +179,18 @@ class NotificationService {
   }
 
   void _onNotificationResponse(NotificationResponse response) {
-    // Handle notification tap based on payload
     print('Notification payload: ${response.payload}');
+    // Handle notification tap based on payload
   }
 
-  // Schedule all enabled notifications
+  // Schedule all enabled notifications with permission check
   Future<void> _scheduleAllNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    final notificationsEnabled = prefs.getBool(enabledKey) ?? true;
+    if (!await areNotificationsEnabled()) {
+      print('❌ Cannot schedule notifications - not enabled or no permissions');
+      return;
+    }
 
-    if (!notificationsEnabled) return;
-
+    print('📅 Scheduling all notifications...');
     await scheduleEveningReminder();
     await scheduleMorningRecap();
     await scheduleWeeklySummary();
@@ -146,310 +198,350 @@ class NotificationService {
     await scheduleStreakReminder();
   }
 
-  // Enhanced evening reminder
+  // ENHANCED: Evening reminder with better iOS compatibility
   Future<void> scheduleEveningReminder() async {
+    if (!await areNotificationsEnabled()) return;
+
     final prefs = await SharedPreferences.getInstance();
-    final notificationsEnabled = prefs.getBool(enabledKey) ?? true;
     final reminderEnabled = prefs.getBool(eveningReminderEnabledKey) ?? true;
 
-    if (!notificationsEnabled || !reminderEnabled) return;
+    if (!reminderEnabled) return;
 
-    // Get user's preferred reminder time (default 9:30 PM)
-    final reminderTimeString = prefs.getString(eveningReminderTimeKey) ?? '21:30';
-    final timeParts = reminderTimeString.split(':');
-    final hour = int.parse(timeParts[0]);
-    final minute = int.parse(timeParts[1]);
+    try {
+      // Get user's preferred reminder time (default 9:30 PM)
+      final reminderTimeString = prefs.getString(eveningReminderTimeKey) ?? '21:30';
+      final timeParts = reminderTimeString.split(':');
+      final hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
 
-    // Create schedule time
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduledTime = tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day,
-      hour,
-      minute,
-    );
-
-    // If time today has already passed, schedule for tomorrow
-    if (scheduledTime.isBefore(now)) {
-      scheduledTime = scheduledTime.add(const Duration(days: 1));
-    }
-
-    // Cancel any existing reminder
-    await flutterLocalNotificationsPlugin.cancel(eveningReminderId);
-
-    // Enhanced evening messages based on day of week
-    final List<String> weekdayMessages = [
-      "Quick check-in! Log today's drinks before bed 🌙",
-      "End your day right - track your drinks in BoozeBuddy 📝",
-      "Don't forget to log today's drinks! Your future self will thank you 🍻",
-      "Time to wrap up the day - add any drinks you had today 📊",
-      "Keep your streak going! Log today's drinks before sleeping 🔥"
-    ];
-
-    final List<String> weekendMessages = [
-      "Weekend vibes! Don't forget to log tonight's drinks 🎉",
-      "Out and about? Quick reminder to track your drinks 🍹",
-      "Weekend check-in: Log your drinks to keep track 🥳",
-      "Having fun? Remember to log your drinks in BoozeBuddy 🍻",
-      "Weekend tracking time! Add today's drinks before bed 🌙"
-    ];
-
-    final isWeekend = now.weekday >= 6;
-    final messages = isWeekend ? weekendMessages : weekdayMessages;
-    final random = DateTime.now().millisecond % messages.length;
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      eveningReminderId,
-      'BoozeBuddy Evening Check-in',
-      messages[random],
-      scheduledTime,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'evening_reminder_channel',
-          'Evening Reminders',
-          channelDescription: 'Evening reminders to log drinks',
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: 'notification_icon',
-          channelShowBadge: true,
-          color: Color(0xFF7E57C2),
-        ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-      payload: 'home',
-    );
-  }
-
-  // NEW: Morning recap notification
-  Future<void> scheduleMorningRecap() async {
-    final prefs = await SharedPreferences.getInstance();
-    final notificationsEnabled = prefs.getBool(enabledKey) ?? true;
-    final morningRecapEnabled = prefs.getBool(morningRecapEnabledKey) ?? true;
-
-    if (!notificationsEnabled || !morningRecapEnabled) return;
-
-    // Get user's preferred morning time (default 11:00 AM)
-    final morningTimeString = prefs.getString(morningRecapTimeKey) ?? '11:00';
-    final timeParts = morningTimeString.split(':');
-    final hour = int.parse(timeParts[0]);
-    final minute = int.parse(timeParts[1]);
-
-    // Create schedule time for tomorrow morning
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduledTime = tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day,
-      hour,
-      minute,
-    );
-
-    // Always schedule for next occurrence (today if not passed, tomorrow if passed)
-    if (scheduledTime.isBefore(now)) {
-      scheduledTime = scheduledTime.add(const Duration(days: 1));
-    }
-
-    // Cancel any existing morning recap
-    await flutterLocalNotificationsPlugin.cancel(morningRecapId);
-
-    // Check if user logged drinks yesterday
-    final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    final yesterdayDrinks = await _storageService.getDrinksForDate(yesterday);
-
-    String message;
-    if (yesterdayDrinks.isEmpty) {
-      // No drinks logged yesterday - could be forgot to log or sober day
-      final dayOfWeek = DateFormat('EEEE').format(yesterday);
-      message = "Did you have any drinks yesterday ($dayOfWeek)? Add them now if you forgot to log them! 📝";
-    } else {
-      // Had drinks yesterday - show recap
-      final totalDrinks = yesterdayDrinks.fold<double>(0, (sum, drink) => sum + drink.standardDrinks);
-      message = "Yesterday's recap: ${totalDrinks.toStringAsFixed(1)} drinks logged. How are you feeling today? 🌅";
-    }
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      morningRecapId,
-      'Good morning! ☀️',
-      message,
-      scheduledTime,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'morning_recap_channel',
-          'Morning Recap',
-          channelDescription: 'Morning recap and catch-up reminders',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-          icon: 'notification_icon',
-          channelShowBadge: true,
-          color: Color(0xFFFF9F43),
-        ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-      payload: 'home',
-    );
-  }
-
-  // Enhanced weekly summary notification
-  Future<void> scheduleWeeklySummary() async {
-    final prefs = await SharedPreferences.getInstance();
-    final notificationsEnabled = prefs.getBool(enabledKey) ?? true;
-    final summaryEnabled = prefs.getBool(weeklySummaryEnabledKey) ?? true;
-
-    if (!notificationsEnabled || !summaryEnabled) return;
-
-    final weeklyReportDay = prefs.getInt(weeklyReportDayKey) ?? DateTime.sunday;
-    final scheduledDate = _nextInstanceOfDay(weeklyReportDay, 10, 0);
-
-    await flutterLocalNotificationsPlugin.cancel(weeklySummaryId);
-
-    // Create personalized weekly message
-    final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final weekEnd = weekStart.add(const Duration(days: 6));
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      weeklySummaryId,
-      'Your Weekly Drinking Insights 📊',
-      'Time for your weekly wrap-up! See how your drinking patterns looked this week and get personalized insights.',
-      scheduledDate,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'weekly_summary_channel',
-          'Weekly Summaries',
-          channelDescription: 'Weekly summaries of drinking patterns',
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: 'stats_icon',
-          channelShowBadge: true,
-          color: Color(0xFF7E57C2),
-        ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-          badgeNumber: 1,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-      payload: 'stats',
-    );
-  }
-
-  // NEW: Weekend check-in notification
-  Future<void> scheduleWeekendCheckIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    final notificationsEnabled = prefs.getBool(enabledKey) ?? true;
-    final weekendCheckInEnabled = prefs.getBool(weekendCheckInEnabledKey) ?? true;
-
-    if (!notificationsEnabled || !weekendCheckInEnabled) return;
-
-    // Schedule for Friday evening (start of weekend)
-    final fridayEvening = _nextInstanceOfDay(DateTime.friday, 18, 0); // 6 PM Friday
-
-    await flutterLocalNotificationsPlugin.cancel(weekendCheckInId);
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      weekendCheckInId,
-      'Weekend Plans? 🎉',
-      'The weekend is here! If you\'re planning to drink, remember to track it in BoozeBuddy for better insights.',
-      fridayEvening,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'weekend_checkin_channel',
-          'Weekend Check-ins',
-          channelDescription: 'Weekend planning and awareness reminders',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-          icon: 'notification_icon',
-          channelShowBadge: true,
-          color: Color(0xFFFF9F43),
-        ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-      payload: 'home',
-    );
-  }
-
-  // NEW: Streak reminder notification
-  Future<void> scheduleStreakReminder() async {
-    final prefs = await SharedPreferences.getInstance();
-    final notificationsEnabled = prefs.getBool(enabledKey) ?? true;
-    final streakReminderEnabled = prefs.getBool(streakReminderEnabledKey) ?? true;
-
-    if (!notificationsEnabled || !streakReminderEnabled) return;
-
-    // Check user's tracking streak
-    final trackingDays = await _calculateTrackingStreak();
-
-    if (trackingDays >= 3) {
-      // Schedule reminder to keep streak going
+      // Create schedule time
       final now = tz.TZDateTime.now(tz.local);
-      final tomorrowEvening = tz.TZDateTime(
+      var scheduledTime = tz.TZDateTime(
         tz.local,
         now.year,
         now.month,
-        now.day + 1,
-        20, // 8 PM
-        0,
+        now.day,
+        hour,
+        minute,
       );
 
+      // If time today has already passed, schedule for tomorrow
+      if (scheduledTime.isBefore(now)) {
+        scheduledTime = scheduledTime.add(const Duration(days: 1));
+      }
+
+      // Cancel any existing reminder
+      await flutterLocalNotificationsPlugin.cancel(eveningReminderId);
+
+      // Enhanced evening messages
+      final List<String> weekdayMessages = [
+        "Quick check-in! Log today's drinks before bed 🌙",
+        "End your day right - track your drinks in BoozeBuddy 📝",
+        "Don't forget to log today's drinks! Your future self will thank you 🍻",
+        "Time to wrap up the day - add any drinks you had today 📊",
+        "Keep your streak going! Log today's drinks before sleeping 🔥"
+      ];
+
+      final List<String> weekendMessages = [
+        "Weekend vibes! Don't forget to log tonight's drinks 🎉",
+        "Out and about? Quick reminder to track your drinks 🍹",
+        "Weekend check-in: Log your drinks to keep track 🥳",
+        "Having fun? Remember to log your drinks in BoozeBuddy 🍻",
+        "Weekend tracking time! Add today's drinks before bed 🌙"
+      ];
+
+      final isWeekend = now.weekday >= 6;
+      final messages = isWeekend ? weekendMessages : weekdayMessages;
+      final random = DateTime.now().millisecond % messages.length;
+
       await flutterLocalNotificationsPlugin.zonedSchedule(
-        streakReminderId,
-        'Keep Your Streak Going! 🔥',
-        'You\'ve been tracking for $trackingDays days in a row! Don\'t break the streak - log today\'s drinks.',
-        tomorrowEvening,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'streak_reminder_channel',
-            'Streak Reminders',
-            channelDescription: 'Reminders to maintain tracking streaks',
+        eveningReminderId,
+        'BoozeBuddy Evening Check-in',
+        messages[random],
+        scheduledTime,
+        NotificationDetails(
+          android: const AndroidNotificationDetails(
+            'evening_reminder_channel',
+            'Evening Reminders',
+            channelDescription: 'Evening reminders to log drinks',
             importance: Importance.high,
             priority: Priority.high,
             icon: 'notification_icon',
             channelShowBadge: true,
-            color: Color(0xFF4CAF50),
+            color: Color(0xFF7E57C2),
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            // IMPORTANT: These settings help with iOS delivery
+            interruptionLevel: InterruptionLevel.active,
+            categoryIdentifier: 'reminder_category',
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+        payload: 'home',
+      );
+
+      print('✅ Evening reminder scheduled for ${scheduledTime.toString()}');
+    } catch (e) {
+      print('❌ Error scheduling evening reminder: $e');
+    }
+  }
+
+  // ENHANCED: Morning recap with better iOS compatibility
+  Future<void> scheduleMorningRecap() async {
+    if (!await areNotificationsEnabled()) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final morningRecapEnabled = prefs.getBool(morningRecapEnabledKey) ?? true;
+
+    if (!morningRecapEnabled) return;
+
+    try {
+      // Get user's preferred morning time (default 11:00 AM)
+      final morningTimeString = prefs.getString(morningRecapTimeKey) ?? '11:00';
+      final timeParts = morningTimeString.split(':');
+      final hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+
+      // Create schedule time for tomorrow morning
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduledTime = tz.TZDateTime(
+        tz.local,
+        now.year,
+        now.month,
+        now.day,
+        hour,
+        minute,
+      );
+
+      // Always schedule for next occurrence
+      if (scheduledTime.isBefore(now)) {
+        scheduledTime = scheduledTime.add(const Duration(days: 1));
+      }
+
+      // Cancel any existing morning recap
+      await flutterLocalNotificationsPlugin.cancel(morningRecapId);
+
+      // Check if user logged drinks yesterday
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      final yesterdayDrinks = await _storageService.getDrinksForDate(yesterday);
+
+      String message;
+      if (yesterdayDrinks.isEmpty) {
+        final dayOfWeek = DateFormat('EEEE').format(yesterday);
+        message = "Did you have any drinks yesterday ($dayOfWeek)? Add them now if you forgot to log them! 📝";
+      } else {
+        final totalDrinks = yesterdayDrinks.fold<double>(0, (sum, drink) => sum + drink.standardDrinks);
+        message = "Yesterday's recap: ${totalDrinks.toStringAsFixed(1)} drinks logged. How are you feeling today? 🌅";
+      }
+
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        morningRecapId,
+        'Good morning! ☀️',
+        message,
+        scheduledTime,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'morning_recap_channel',
+            'Morning Recap',
+            channelDescription: 'Morning recap and catch-up reminders',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+            icon: 'notification_icon',
+            channelShowBadge: true,
+            color: Color(0xFFFF9F43),
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
             presentSound: true,
+            interruptionLevel: InterruptionLevel.active,
+            categoryIdentifier: 'morning_category',
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
         payload: 'home',
       );
+
+      print('✅ Morning recap scheduled for ${scheduledTime.toString()}');
+    } catch (e) {
+      print('❌ Error scheduling morning recap: $e');
     }
   }
 
-  // Enhanced milestone notifications
-  Future<void> sendMilestoneNotification(String achievement, int count) async {
+  // Enhanced weekly summary notification
+  Future<void> scheduleWeeklySummary() async {
+    if (!await areNotificationsEnabled()) return;
+
     final prefs = await SharedPreferences.getInstance();
-    final notificationsEnabled = prefs.getBool(enabledKey) ?? true;
+    final summaryEnabled = prefs.getBool(weeklySummaryEnabledKey) ?? true;
+
+    if (!summaryEnabled) return;
+
+    try {
+      final weeklyReportDay = prefs.getInt(weeklyReportDayKey) ?? DateTime.sunday;
+      final scheduledDate = _nextInstanceOfDay(weeklyReportDay, 10, 0);
+
+      await flutterLocalNotificationsPlugin.cancel(weeklySummaryId);
+
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        weeklySummaryId,
+        'Your Weekly Drinking Insights 📊',
+        'Time for your weekly wrap-up! See how your drinking patterns looked this week and get personalized insights.',
+        scheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'weekly_summary_channel',
+            'Weekly Summaries',
+            channelDescription: 'Weekly summaries of drinking patterns',
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: 'stats_icon',
+            channelShowBadge: true,
+            color: Color(0xFF7E57C2),
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            badgeNumber: 1,
+            interruptionLevel: InterruptionLevel.active,
+            categoryIdentifier: 'weekly_category',
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+        payload: 'stats',
+      );
+
+      print('✅ Weekly summary scheduled for ${scheduledDate.toString()}');
+    } catch (e) {
+      print('❌ Error scheduling weekly summary: $e');
+    }
+  }
+
+  // Weekend check-in notification
+  Future<void> scheduleWeekendCheckIn() async {
+    if (!await areNotificationsEnabled()) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final weekendCheckInEnabled = prefs.getBool(weekendCheckInEnabledKey) ?? true;
+
+    if (!weekendCheckInEnabled) return;
+
+    try {
+      // Schedule for Friday evening (start of weekend)
+      final fridayEvening = _nextInstanceOfDay(DateTime.friday, 18, 0); // 6 PM Friday
+
+      await flutterLocalNotificationsPlugin.cancel(weekendCheckInId);
+
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        weekendCheckInId,
+        'Weekend Plans? 🎉',
+        'The weekend is here! If you\'re planning to drink, remember to track it in BoozeBuddy for better insights.',
+        fridayEvening,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'weekend_checkin_channel',
+            'Weekend Check-ins',
+            channelDescription: 'Weekend planning and awareness reminders',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+            icon: 'notification_icon',
+            channelShowBadge: true,
+            color: Color(0xFFFF9F43),
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            interruptionLevel: InterruptionLevel.active,
+            categoryIdentifier: 'weekend_category',
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+        payload: 'home',
+      );
+
+      print('✅ Weekend check-in scheduled for ${fridayEvening.toString()}');
+    } catch (e) {
+      print('❌ Error scheduling weekend check-in: $e');
+    }
+  }
+
+  // Streak reminder notification
+  Future<void> scheduleStreakReminder() async {
+    if (!await areNotificationsEnabled()) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final streakReminderEnabled = prefs.getBool(streakReminderEnabledKey) ?? true;
+
+    if (!streakReminderEnabled) return;
+
+    try {
+      // Check user's tracking streak
+      final trackingDays = await _calculateTrackingStreak();
+
+      if (trackingDays >= 3) {
+        // Schedule reminder to keep streak going
+        final now = tz.TZDateTime.now(tz.local);
+        final tomorrowEvening = tz.TZDateTime(
+          tz.local,
+          now.year,
+          now.month,
+          now.day + 1,
+          20, // 8 PM
+          0,
+        );
+
+        await flutterLocalNotificationsPlugin.zonedSchedule(
+          streakReminderId,
+          'Keep Your Streak Going! 🔥',
+          'You\'ve been tracking for $trackingDays days in a row! Don\'t break the streak - log today\'s drinks.',
+          tomorrowEvening,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'streak_reminder_channel',
+              'Streak Reminders',
+              channelDescription: 'Reminders to maintain tracking streaks',
+              importance: Importance.high,
+              priority: Priority.high,
+              icon: 'notification_icon',
+              channelShowBadge: true,
+              color: Color(0xFF4CAF50),
+            ),
+            iOS: DarwinNotificationDetails(
+              presentAlert: true,
+              presentBadge: true,
+              presentSound: true,
+              interruptionLevel: InterruptionLevel.active,
+              categoryIdentifier: 'streak_category',
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          payload: 'home',
+        );
+
+        print('✅ Streak reminder scheduled for ${tomorrowEvening.toString()}');
+      }
+    } catch (e) {
+      print('❌ Error scheduling streak reminder: $e');
+    }
+  }
+
+  // ENHANCED: Better milestone notifications
+  Future<void> sendMilestoneNotification(String achievement, int count) async {
+    if (!await areNotificationsEnabled()) return;
+
+    final prefs = await SharedPreferences.getInstance();
     final milestoneEnabled = prefs.getBool(milestoneEnabledKey) ?? true;
 
-    if (!notificationsEnabled || !milestoneEnabled) return;
+    if (!milestoneEnabled) return;
 
     String title;
     String body;
@@ -491,38 +583,47 @@ class NotificationService {
         body = 'You\'ve reached a new milestone in your tracking journey!';
     }
 
-    await flutterLocalNotificationsPlugin.show(
-      milestoneId,
-      title,
-      body,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'milestone_channel',
-          'Milestone Celebrations',
-          channelDescription: 'Notifications for user milestones and achievements',
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: 'achievement_icon',
-          channelShowBadge: true,
-          color: Color(0xFF4CAF50),
+    try {
+      await flutterLocalNotificationsPlugin.show(
+        milestoneId,
+        title,
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'milestone_channel',
+            'Milestone Celebrations',
+            channelDescription: 'Notifications for user milestones and achievements',
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: 'achievement_icon',
+            channelShowBadge: true,
+            color: Color(0xFF4CAF50),
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            interruptionLevel: InterruptionLevel.active,
+            categoryIdentifier: 'milestone_category',
+          ),
         ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-      payload: 'stats',
-    );
+        payload: 'stats',
+      );
+
+      print('✅ Milestone notification sent: $title');
+    } catch (e) {
+      print('❌ Error sending milestone notification: $e');
+    }
   }
 
-  // NEW: Send sober day encouragement
+  // Send sober day encouragement
   Future<void> sendSoberDayEncouragement() async {
+    if (!await areNotificationsEnabled()) return;
+
     final prefs = await SharedPreferences.getInstance();
-    final notificationsEnabled = prefs.getBool(enabledKey) ?? true;
     final soberDayEnabled = prefs.getBool(soberDayEncouragementEnabledKey) ?? true;
 
-    if (!notificationsEnabled || !soberDayEnabled) return;
+    if (!soberDayEnabled) return;
 
     final encouragementMessages = [
       "Great choice staying sober today! Your body is thanking you 💚",
@@ -534,29 +635,37 @@ class NotificationService {
 
     final random = DateTime.now().millisecond % encouragementMessages.length;
 
-    await flutterLocalNotificationsPlugin.show(
-      soberDayEncouragementId,
-      'Sober Day Champion! 🏆',
-      encouragementMessages[random],
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'sober_encouragement_channel',
-          'Sober Day Encouragement',
-          channelDescription: 'Positive reinforcement for alcohol-free days',
-          importance: Importance.defaultImportance,
-          priority: Priority.defaultPriority,
-          icon: 'notification_icon',
-          channelShowBadge: true,
-          color: Color(0xFF4CAF50),
+    try {
+      await flutterLocalNotificationsPlugin.show(
+        soberDayEncouragementId,
+        'Sober Day Champion! 🏆',
+        encouragementMessages[random],
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'sober_encouragement_channel',
+            'Sober Day Encouragement',
+            channelDescription: 'Positive reinforcement for alcohol-free days',
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+            icon: 'notification_icon',
+            channelShowBadge: true,
+            color: Color(0xFF4CAF50),
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            interruptionLevel: InterruptionLevel.active,
+            categoryIdentifier: 'sober_category',
+          ),
         ),
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      ),
-      payload: 'stats',
-    );
+        payload: 'stats',
+      );
+
+      print('✅ Sober day encouragement sent');
+    } catch (e) {
+      print('❌ Error sending sober day encouragement: $e');
+    }
   }
 
   // Helper method to calculate tracking streak
@@ -612,7 +721,7 @@ class NotificationService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(enabledKey, enabled);
 
-    if (enabled) {
+    if (enabled && _iosPermissionsGranted) {
       await _scheduleAllNotifications();
     } else {
       await flutterLocalNotificationsPlugin.cancelAll();
@@ -639,6 +748,8 @@ class NotificationService {
   Future<void> toggleNotificationType(String key, bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(key, enabled);
+
+    if (!await areNotificationsEnabled()) return;
 
     // Reschedule relevant notifications
     switch (key) {
@@ -687,34 +798,15 @@ class NotificationService {
     await scheduleWeeklySummary();
   }
 
-  // Test notification - for development/testing purposes
+  // ENHANCED: Test notification with better iOS handling
   Future<void> sendTestNotification() async {
     try {
       print('🧪 Testing notification - checking permissions...');
 
-      final prefs = await SharedPreferences.getInstance();
-      final notificationsEnabled = prefs.getBool(enabledKey) ?? true;
-
-      print('Notifications enabled in settings: $notificationsEnabled');
-
-      if (!notificationsEnabled) {
-        print('❌ Notifications disabled in app settings');
+      // First check if notifications are enabled
+      if (!await areNotificationsEnabled()) {
+        print('❌ Notifications not enabled or no permissions');
         return;
-      }
-
-      // Check permissions on iOS
-      final IOSFlutterLocalNotificationsPlugin? iOSPlugin =
-      flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
-
-      if (iOSPlugin != null) {
-        final permissions = await iOSPlugin.requestPermissions(
-          alert: true,
-          badge: true,
-          sound: true,
-        );
-        print('iOS permissions - Alert: ${permissions}, Badge: ${permissions}, Sound: ${permissions}');
-        print('⚠️  iOS Note: Notifications only show when app is backgrounded or device is locked');
       }
 
       final testMessages = [
@@ -752,8 +844,9 @@ class NotificationService {
             presentBadge: true,
             presentSound: true,
             badgeNumber: 1,
-            // This helps with foreground notifications
+            // IMPORTANT: This helps with iOS notification delivery
             interruptionLevel: InterruptionLevel.active,
+            categoryIdentifier: 'test_category',
           ),
         ),
         payload: 'test',
@@ -770,11 +863,8 @@ class NotificationService {
     try {
       print('🕐 Testing scheduled notification...');
 
-      final prefs = await SharedPreferences.getInstance();
-      final notificationsEnabled = prefs.getBool(enabledKey) ?? true;
-
-      if (!notificationsEnabled) {
-        print('❌ Notifications disabled in app settings');
+      if (!await areNotificationsEnabled()) {
+        print('❌ Notifications not enabled or no permissions');
         return;
       }
 
@@ -807,6 +897,8 @@ class NotificationService {
             presentBadge: true,
             presentSound: true,
             badgeNumber: 2,
+            interruptionLevel: InterruptionLevel.active,
+            categoryIdentifier: 'test_scheduled_category',
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -819,7 +911,14 @@ class NotificationService {
     }
   }
 
-  // Debug method to check notification status
+  // NEW: Show system settings for notifications (iOS specific)
+  Future<void> openNotificationSettings() async {
+    // This would require additional platform-specific code
+    // For now, we can only show instructions to the user
+    print('📱 User should go to iOS Settings > Notifications > BoozeBuddy');
+  }
+
+  // ENHANCED: Debug method with iOS-specific info
   Future<Map<String, dynamic>> getNotificationDebugInfo() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -827,8 +926,9 @@ class NotificationService {
       'app_notifications_enabled': prefs.getBool(enabledKey) ?? true,
       'evening_reminder_enabled': prefs.getBool(eveningReminderEnabledKey) ?? true,
       'morning_recap_enabled': prefs.getBool(morningRecapEnabledKey) ?? true,
+      'ios_permissions_granted': _iosPermissionsGranted,
+      'notifications_functional': await areNotificationsEnabled(),
       'platform': 'unknown',
-      'permissions_granted': false,
     };
 
     try {
@@ -839,11 +939,10 @@ class NotificationService {
 
       if (iOSPlugin != null) {
         debugInfo['platform'] = 'iOS';
-        // Note: There's no direct way to check current permissions on iOS
-        debugInfo['permissions_note'] = 'iOS permissions checked during init';
+        debugInfo['ios_specific_note'] = 'iOS notifications only show when app is backgrounded or device is locked';
       } else {
         debugInfo['platform'] = 'Android';
-        debugInfo['permissions_note'] = 'Android permissions handled automatically';
+        debugInfo['android_note'] = 'Android notifications should work immediately';
       }
 
       // Check pending notifications
@@ -854,6 +953,10 @@ class NotificationService {
         'title': n.title,
         'body': n.body,
       }).toList();
+
+      // Check timezone
+      debugInfo['timezone'] = tz.local.name;
+      debugInfo['current_time'] = tz.TZDateTime.now(tz.local).toString();
 
     } catch (e) {
       debugInfo['error'] = e.toString();
@@ -872,30 +975,51 @@ class NotificationService {
       print('❌ Error cancelling test notifications: $e');
     }
   }
+
+  // Check daily milestones
   Future<void> checkDailyMilestones() async {
+    if (!await areNotificationsEnabled()) return;
+
     final now = DateTime.now();
 
-    // Check if user had no drinks yesterday (sober day)
-    final yesterday = now.subtract(const Duration(days: 1));
-    final yesterdayDrinks = await _storageService.getDrinksForDate(yesterday);
+    try {
+      // Check if user had no drinks yesterday (sober day)
+      final yesterday = now.subtract(const Duration(days: 1));
+      final yesterdayDrinks = await _storageService.getDrinksForDate(yesterday);
 
-    if (yesterdayDrinks.isEmpty) {
-      // It was a sober day - encourage them
-      await sendSoberDayEncouragement();
+      if (yesterdayDrinks.isEmpty) {
+        // It was a sober day - encourage them
+        await sendSoberDayEncouragement();
+      }
+
+      // Check tracking streak
+      final streak = await _calculateTrackingStreak();
+      if (streak > 0 && streak % 7 == 0) {
+        // Weekly streak milestone
+        await sendMilestoneNotification('tracking_streak', streak);
+      }
+
+      // Check total drinks milestone
+      final allDrinks = await _storageService.getDrinks();
+      final totalDrinks = allDrinks.length;
+      if ([10, 25, 50, 100, 250, 500].contains(totalDrinks)) {
+        await sendMilestoneNotification('drinks_count', totalDrinks);
+      }
+    } catch (e) {
+      print('❌ Error checking daily milestones: $e');
     }
+  }
 
-    // Check tracking streak
-    final streak = await _calculateTrackingStreak();
-    if (streak > 0 && streak % 7 == 0) {
-      // Weekly streak milestone
-      await sendMilestoneNotification('tracking_streak', streak);
-    }
+  // NEW: Force reinitialize permissions (useful for troubleshooting)
+  Future<void> reinitializePermissions() async {
+    print('🔄 Reinitializing iOS permissions...');
+    await _requestIOSPermissions();
 
-    // Check total drinks milestone
-    final allDrinks = await _storageService.getDrinks();
-    final totalDrinks = allDrinks.length;
-    if ([10, 25, 50, 100, 250, 500].contains(totalDrinks)) {
-      await sendMilestoneNotification('drinks_count', totalDrinks);
+    if (_iosPermissionsGranted) {
+      await _scheduleAllNotifications();
+      print('✅ Permissions reinitialized and notifications rescheduled');
+    } else {
+      print('❌ Permissions still not granted after reinitialization');
     }
   }
 }
